@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotebookLM Clone (Multi-Source)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: { bg: '#1a1a2e', card: '#16213e', border: '#2d3a4f', hover: '#1f3460' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0f0f23; }
+    ::-webkit-scrollbar-thumb { background: #2d3a4f; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+
+    .drop-zone { border: 2px dashed #3b82f6; transition: all 0.3s ease; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #60a5fa; background-color: rgba(59, 130, 246, 0.1); }
+    .source-btn { transition: all 0.2s ease; }
+    .source-btn:hover { transform: translateY(-2px); }
+    .chat-message { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Markdown Styles */
+    .markdown-content h1, .markdown-content h2 { font-weight: 600; margin: 1em 0 0.5em; color: #e2e8f0; }
+    .markdown-content h1 { font-size: 1.5em; border-bottom: 1px solid #2d3a4f; padding-bottom: 0.3em; }
+    .markdown-content h2 { font-size: 1.25em; }
+    .markdown-content ul, .markdown-content ol { margin-left: 1.5em; margin-bottom: 1em; }
+    .markdown-content li { margin-bottom: 0.25em; list-style-type: disc; }
+    .markdown-content p { margin-bottom: 0.75em; line-height: 1.6; }
+    .markdown-content strong { color: #60a5fa; font-weight: 700; }
+    .markdown-content code { background: rgba(59, 130, 246, 0.15); padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; color: #93c5fd; }
+    .markdown-content pre { background: #0f0f23; padding: 1em; border-radius: 8px; overflow-x: auto; margin: 1em 0; border: 1px solid #2d3a4f; }
+    .markdown-content pre code { background: none; padding: 0; color: #e2e8f0; }
+    .markdown-content blockquote { border-left: 4px solid #3b82f6; padding-left: 1em; color: #94a3b8; font-style: italic; }
+
+    /* Animation Utilities */
+    .thinking-dots span { animation: bounce 1.4s infinite ease-in-out both; }
+    .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+  </style>
+</head>
+<body class="bg-[#0f0f23] min-h-screen text-gray-100 font-sans selection:bg-blue-500/30">
+  
+  <header class="border-b border-gray-800 bg-[#1a1a2e] sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="fas fa-book-open text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">NotebookLM Clone</h1>
+          <p class="text-xs text-gray-400 font-mono" id="notebookIdDisplay">Loading ID...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="createNewNotebook()" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 border border-gray-700 transition-colors flex items-center gap-2">
+          <i class="fas fa-plus"></i> New Notebook
+        </button>
+        <button onclick="clearAllSources()" class="text-gray-500 hover:text-red-400 text-sm p-2">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-73px)]">
+    
+    <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden h-full">
+      
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-shrink-0">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+          <i class="fas fa-cloud-upload-alt text-blue-500"></i> Add Sources
+        </h2>
+        
+        <div id="dropZone" class="drop-zone rounded-xl p-6 text-center cursor-pointer mb-4 bg-[#0f0f23]">
+          <div class="w-12 h-12 mx-auto mb-3 bg-blue-500/10 rounded-full flex items-center justify-center">
+            <i class="fas fa-file-import text-xl text-blue-500"></i>
+          </div>
+          <p class="text-gray-300 text-sm font-medium">Click or Drop files here</p>
+          <p class="text-xs text-gray-500 mt-1">PDF, Docs, Text, Images</p>
+          <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.md,.docx,.doc,.jpg,.jpeg,.png,.webp">
+        </div>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="showUrlInput('website')" class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fas fa-globe text-blue-400"></i>
+            <span class="text-[10px] text-gray-400">Web</span>
+          </button>
+          <button onclick="showUrlInput('youtube')" class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fab fa-youtube text-red-500"></i>
+            <span class="text-[10px] text-gray-400">YouTube</span>
+          </button>
+          <button onclick="showTextInput()" class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fas fa-paste text-purple-400"></i>
+            <span class="text-[10px] text-gray-400">Paste</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-1 flex flex-col min-h-0">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Current Sources
+          </h2>
+          <span id="sourceCount" class="bg-blue-900/50 text-blue-300 text-xs px-2 py-0.5 rounded-full border border-blue-500/20">0</span>
+        </div>
+        
+        <div id="sourcesList" class="space-y-2 overflow-y-auto pr-1 flex-1">
+          <div class="text-center py-10 opacity-40">
+            <i class="fas fa-layer-group text-3xl mb-2"></i>
+            <p class="text-sm">No sources added yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="lg:col-span-8 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-2xl">
+      
+      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e]">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-sparkles text-yellow-500"></i>
+          <span class="font-semibold text-gray-200">AI Notebook Assistant</span>
+        </div>
+        <button onclick="clearChat()" class="text-xs text-gray-500 hover:text-white transition-colors">
+          Clear History
+        </button>
+      </div>
+      
+      <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth bg-[#0f0f23]">
+        <div class="text-center py-12">
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5">
+            <i class="fas fa-robot text-2xl text-blue-400"></i>
+          </div>
+          <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
+          <p class="text-gray-500 text-sm max-w-xs mx-auto">Upload documents or add links to the left, then ask me anything about them.</p>
+        </div>
+      </div>
+      
+      <div class="p-4 border-t border-gray-800 bg-[#1a1a2e]">
+        <div class="relative flex items-end gap-2 bg-[#0f0f23] border border-gray-700 rounded-xl p-2 focus-within:border-blue-500 transition-colors shadow-inner">
+          <textarea id="chatInput" rows="1" placeholder="Ask about your sources..." 
+            class="w-full bg-transparent border-none text-gray-200 p-2 focus:ring-0 resize-none max-h-32 text-sm leading-relaxed scrollbar-hide"
+            oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+          
+          <button id="sendBtn" onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
+            <i class="fas fa-paper-plane text-sm"></i>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-600 text-center mt-2">AI can make mistakes. Check important info.</p>
+      </div>
+    </div>
+  </main>
+
+  <div id="urlModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl transform transition-all scale-100">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center">
+        <h3 id="modalTitle" class="font-semibold text-white flex items-center gap-2">Add Link</h3>
+        <button onclick="closeModal('urlModal')" class="text-gray-500 hover:text-white"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="p-5">
+        <input type="url" id="urlInput" placeholder="https://..." class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white mb-4">
+        <div class="flex justify-end gap-2">
+          <button onclick="closeModal('urlModal')" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
+          <button onclick="submitUrl()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Add Source</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="textModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-lg border border-gray-700 shadow-2xl">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center">
+        <h3 class="font-semibold text-white flex items-center gap-2"><i class="fas fa-paste text-purple-500"></i> Paste Text</h3>
+        <button onclick="closeModal('textModal')" class="text-gray-500 hover:text-white"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="p-5 space-y-3">
+        <input type="text" id="textTitle" placeholder="Title (e.g. Meeting Notes)" class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-blue-500 focus:outline-none text-white">
+        <textarea id="textInput" placeholder="Paste content here..." class="w-full h-48 bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white resize-none font-mono"></textarea>
+        <div class="flex justify-end gap-2">
+          <button onclick="closeModal('textModal')" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
+          <button onclick="submitText()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium">Add Source</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-[60] backdrop-blur-sm flex-col">
+    <div class="relative w-16 h-16 mb-4">
+      <div class="absolute inset-0 border-4 border-gray-700 rounded-full"></div>
+      <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+    </div>
+    <h3 id="loadingText" class="text-white font-medium text-lg">Processing...</h3>
+    <p id="loadingDetail" class="text-gray-400 text-sm mt-1">Please wait</p>
+    <div class="w-64 bg-gray-800 rounded-full h-1.5 mt-4 overflow-hidden">
+      <div id="progressBar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    const API_BASE = 'https://n8n-nick.abapi.dev/webhook';
+    const ENDPOINTS = {
+      start: `${API_BASE}/notebookllm-start`,
+      status: `${API_BASE}/notebookllm-status`,
+    };
+
+    // ============================================
+    // APP STATE
+    // ============================================
+    let state = {
+      notebookId: '',
+      sources: [],
+      isProcessing: false
+    };
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      initNotebook();
+      setupDropZone();
+      if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+    });
+
+    function initNotebook() {
+      // 1. Get or Create Notebook ID
+      let storedId = localStorage.getItem('notebook_id');
+      if (!storedId) {
+        storedId = 'nb_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        localStorage.setItem('notebook_id', storedId);
+      }
+      state.notebookId = storedId;
+      document.getElementById('notebookIdDisplay').textContent = `ID: ${state.notebookId}`;
+
+      // 2. Load Sources from LocalStorage
+      const storedSources = localStorage.getItem(`sources_${state.notebookId}`);
+      if (storedSources) {
+        state.sources = JSON.parse(storedSources);
+        renderSources();
+      }
+      
+      // 3. Load Chat History (Optional - simple version)
+      const storedChat = localStorage.getItem(`chat_${state.notebookId}`);
+      if (storedChat) {
+        document.getElementById('chatMessages').innerHTML = storedChat;
+      }
+    }
+
+    function createNewNotebook() {
+      if(confirm('Start a new notebook? Current sources will be cleared from view.')) {
+        localStorage.removeItem('notebook_id');
+        location.reload();
+      }
+    }
+
+    // ============================================
+    // FILE UPLOAD LOGIC
+    // ============================================
+    function setupDropZone() {
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+
+      dropZone.onclick = () => fileInput.click();
+      
+      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over', 'bg-gray-800'); };
+      dropZone.ondragleave = () => { dropZone.classList.remove('drag-over', 'bg-gray-800'); };
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over', 'bg-gray-800');
+        if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0]);
+      };
+
+      fileInput.onchange = (e) => {
+        if (e.target.files[0]) {
+          handleFileUpload(e.target.files[0]);
+          fileInput.value = '';
+        }
+      };
+    }
+
+    async function handleFileUpload(file) {
+      // Validate
+      if (file.size > 10 * 1024 * 1024) return showToast('File too large (Max 10MB)', 'error');
+      
+      showLoading('Uploading File', file.name);
+      
+      try {
+        const formData = new FormData();
+        formData.append('data', file);
+        formData.append('action', 'upload_file');
+        formData.append('notebookId', state.notebookId); // <--- CRITICAL: Send Notebook ID
+
+        const res = await fetch(ENDPOINTS.start, { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (!data.jobId) throw new Error(data.error || 'Upload failed');
+        
+        await pollJob(data.jobId, file.name, getFileType(file.name));
+
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ============================================
+    // URL & TEXT LOGIC
+    // ============================================
+    function showUrlInput(type) {
+      const modal = document.getElementById('urlModal');
+      const input = document.getElementById('urlInput');
+      const title = document.getElementById('modalTitle');
+      
+      input.value = '';
+      input.dataset.type = type;
+      
+      if (type === 'youtube') {
+        title.innerHTML = '<i class="fab fa-youtube text-red-500"></i> Add YouTube Video';
+        input.placeholder = 'https://youtube.com/watch?v=...';
+      } else {
+        title.innerHTML = '<i class="fas fa-globe text-blue-500"></i> Add Website';
+        input.placeholder = 'https://example.com';
+      }
+      
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => input.focus(), 100);
+    }
+
+    async function submitUrl() {
+      const input = document.getElementById('urlInput');
+      const url = input.value.trim();
+      if (!url) return;
+      
+      closeModal('urlModal');
+      const type = input.dataset.type;
+      
+      showLoading(`Processing ${type === 'youtube' ? 'Video' : 'Website'}`, url);
+      
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'new_source', 
+            url, 
+            notebookId: state.notebookId // <--- CRITICAL
+          })
+        });
+        
+        const data = await res.json();
+        if (!data.jobId) throw new Error(data.error || 'Failed to start');
+        
+        await pollJob(data.jobId, url, type);
+        
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showTextInput() {
+      document.getElementById('textInput').value = '';
+      document.getElementById('textTitle').value = '';
+      const modal = document.getElementById('textModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    async function submitText() {
+      const text = document.getElementById('textInput').value.trim();
+      const title = document.getElementById('textTitle').value.trim() || 'Pasted Note';
+      
+      if (!text) return;
+      closeModal('textModal');
+      
+      showLoading('Processing Text', title);
+      
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'paste_text', 
+            text, 
+            title,
+            notebookId: state.notebookId // <--- CRITICAL
+          })
+        });
+        
+        const data = await res.json();
+        if (!data.jobId) throw new Error(data.error);
+        
+        await pollJob(data.jobId, title, 'text');
+        
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ============================================
+    // POLLING ENGINE
+    // ============================================
+    async function pollJob(jobId, sourceTitle, sourceType) {
+      let attempts = 0;
+      const maxAttempts = 60; // 2 minutes
+      const pBar = document.getElementById('progressBar');
+      const detail = document.getElementById('loadingDetail');
+      
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+          
+          // Fake progress based on attempts
+          const progress = Math.min((attempts / 20) * 100, 90);
+          pBar.style.width = `${progress}%`;
+          
+          if (data.status === 'completed') {
+            clearInterval(interval);
+            pBar.style.width = '100%';
+            
+            // Add to State
+            const newSource = {
+              id: jobId,
+              title: data.result?.title || sourceTitle,
+              type: sourceType,
+              summary: data.result?.summary,
+              addedAt: new Date().toISOString()
+            };
+            
+            state.sources.push(newSource);
+            saveState();
+            renderSources();
+            hideLoading();
+            showToast('Source added successfully!', 'success');
+            
+            // Add summary to chat
+            addMessage('assistant', `✅ **Added: ${newSource.title}**\n\n${newSource.summary || 'Ready to use.'}`);
+            
+          } else if (data.status === 'error') {
+            throw new Error(data.message || 'Processing failed');
+          }
+          
+        } catch (err) {
+          if (attempts >= maxAttempts || err.message !== 'Job not found') {
+            clearInterval(interval);
+            hideLoading();
+            showToast(err.message || 'Timeout', 'error');
+          }
+        }
+      }, 2000);
+    }
+
+    // ============================================
+    // CHAT LOGIC
+    // ============================================
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg || state.isProcessing) return;
+      
+      if (state.sources.length === 0) {
+        return showToast('Please add a source first', 'error');
+      }
+
+      state.isProcessing = true;
+      input.value = '';
+      input.style.height = 'auto'; // Reset height
+      document.getElementById('sendBtn').disabled = true;
+      
+      addMessage('user', msg);
+      const thinkingId = addThinkingBubble();
+      
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'chat', 
+            message: msg,
+            notebookId: state.notebookId // <--- SEND NOTEBOOK ID
+          })
+        });
+        
+        const data = await res.json();
+        removeMessage(thinkingId);
+        
+        if (data.response) {
+          addMessage('assistant', data.response);
+        } else {
+          addMessage('system', '⚠️ No response received.');
+        }
+        
+      } catch (err) {
+        removeMessage(thinkingId);
+        addMessage('system', `❌ Error: ${err.message}`);
+      } finally {
+        state.isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+        input.focus();
+      }
+    }
+
+    // ============================================
+    // UI HELPERS
+    // ============================================
+    function renderSources() {
+      const list = document.getElementById('sourcesList');
+      document.getElementById('sourceCount').textContent = state.sources.length;
+      
+      if (state.sources.length === 0) {
+        list.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fas fa-layer-group text-3xl mb-2"></i><p class="text-sm">No sources yet</p></div>`;
+        return;
+      }
+      
+      list.innerHTML = state.sources.map((s, idx) => `
+        <div class="bg-[#0f0f23] hover:bg-gray-800 p-3 rounded-xl border border-gray-800 hover:border-blue-500/30 transition-all group relative animate-fadeIn">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg ${getIconBg(s.type)} flex items-center justify-center flex-shrink-0">
+              <i class="${getIconClass(s.type)} text-white text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h4 class="text-sm font-medium text-gray-200 truncate pr-6" title="${s.title}">${s.title}</h4>
+              <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">${s.type}</p>
+            </div>
+          </div>
+          <button onclick="deleteSource(${idx})" class="absolute top-2 right-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="fas fa-times-circle"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function addMessage(role, text) {
+      const container = document.getElementById('chatMessages');
+      // Remove welcome screen if exists
+      const welcome = container.querySelector('.text-center.py-12');
+      if (welcome) welcome.remove();
+
+      const isUser = role === 'user';
+      const id = 'msg-' + Date.now();
+      
+      let contentHtml = text;
+      if (role === 'assistant' && typeof marked !== 'undefined') {
+        contentHtml = marked.parse(text);
+      } else if (role === 'system') {
+        contentHtml = `<span class="text-red-400">${text}</span>`;
+      }
+
+      const html = `
+        <div id="${id}" class="flex gap-4 ${isUser ? 'flex-row-reverse' : ''} chat-message">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-green-500 to-teal-600'}">
+            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-xs text-white"></i>
+          </div>
+          <div class="max-w-[85%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-5 py-3.5">
+            <div class="text-sm text-gray-200 leading-relaxed ${role === 'assistant' ? 'markdown-content' : ''}">${contentHtml}</div>
+          </div>
+        </div>
+      `;
+      
+      container.insertAdjacentHTML('beforeend', html);
+      container.scrollTop = container.scrollHeight;
+      
+      // Save Chat History simple
+      localStorage.setItem(`chat_${state.notebookId}`, container.innerHTML);
+    }
+
+    function addThinkingBubble() {
+      const container = document.getElementById('chatMessages');
+      const id = 'thinking-' + Date.now();
+      container.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="flex gap-4 chat-message">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center flex-shrink-0">
+             <i class="fas fa-robot text-xs text-white"></i>
+          </div>
+          <div class="bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4">
+            <div class="thinking-dots flex gap-1">
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+            </div>
+          </div>
+        </div>
+      `);
+      container.scrollTop = container.scrollHeight;
+      return id;
+    }
+
+    function removeMessage(id) {
+      document.getElementById(id)?.remove();
+    }
+
+    function clearChat() {
+      document.getElementById('chatMessages').innerHTML = '';
+      localStorage.removeItem(`chat_${state.notebookId}`);
+      // Restore welcome message
+      document.getElementById('chatMessages').innerHTML = `
+        <div class="text-center py-12">
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5">
+            <i class="fas fa-robot text-2xl text-blue-400"></i>
+          </div>
+          <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
+          <p class="text-gray-500 text-sm max-w-xs mx-auto">Upload documents or add links to the left, then ask me anything about them.</p>
+        </div>
+      `;
+    }
+
+    // ============================================
+    // UTILS
+    // ============================================
+    function saveState() {
+      localStorage.setItem(`sources_${state.notebookId}`, JSON.stringify(state.sources));
+    }
+
+    function deleteSource(index) {
+      if(confirm('Remove this source?')) {
+        state.sources.splice(index, 1);
+        saveState();
+        renderSources();
+      }
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    function showLoading(text, detail) {
+      document.getElementById('loadingText').textContent = text;
+      document.getElementById('loadingDetail').textContent = detail;
+      document.getElementById('progressBar').style.width = '0%';
+      document.getElementById('loadingOverlay').classList.remove('hidden');
+      document.getElementById('loadingOverlay').classList.add('flex');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('loadingOverlay').classList.remove('flex');
+    }
+
+    function showToast(msg, type) {
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-5 right-5 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg transform transition-all translate-y-10 opacity-0 z-[70] flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-green-600'}`;
+      toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i> ${msg}`;
+      document.body.appendChild(toast);
+      
+      requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function getFileType(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['pdf'].includes(ext)) return 'pdf';
+      if (['doc', 'docx'].includes(ext)) return 'docx';
+      if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return 'image';
+      return 'text';
+    }
+
+    function getIconClass(type) {
+      const map = {
+        'pdf': 'fas fa-file-pdf',
+        'docx': 'fas fa-file-word',
+        'image': 'fas fa-file-image',
+        'youtube': 'fab fa-youtube',
+        'website': 'fas fa-globe',
+        'text': 'fas fa-file-alt'
+      };
+      return map[type] || 'fas fa-file';
+    }
+
+    function getIconBg(type) {
+      const map = {
+        'pdf': 'bg-red-500',
+        'docx': 'bg-blue-500',
+        'image': 'bg-green-500',
+        'youtube': 'bg-red-600',
+        'website': 'bg-indigo-500',
+        'text': 'bg-gray-500'
+      };
+      return map[type] || 'bg-gray-500';
+    }
+  </script>
+</body>
+</html>
