@@ -833,7 +833,12 @@
         const res = await fetch(ENDPOINTS.start, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'chat', message: msg, notebookId: state.notebookId })
+          body: JSON.stringify({
+            action: 'chat',
+            message: msg,
+            notebookId: state.notebookId,
+            sources: state.sources // Send current sources for accurate citations
+          })
         });
         const data = await res.json();
         removeMessage(thinkingId);
