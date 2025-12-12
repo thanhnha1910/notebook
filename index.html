@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NotebookLM  Crew</title>
+  <title>NotebookLM Crew - Mixed Batch Upload</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -12,6 +12,16 @@
         extend: {
           colors: {
             dark: { bg: '#1a1a2e', card: '#16213e', border: '#2d3a4f', hover: '#1f3460' }
+          },
+          animation: {
+            'bounce-slow': 'bounce 3s infinite',
+            'fadeIn': 'fadeIn 0.3s ease-out'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
           }
         }
       }
@@ -26,12 +36,9 @@
     ::-webkit-scrollbar-thumb { background: #2d3a4f; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
 
+    /* Drag & Drop Zone */
     .drop-zone { border: 2px dashed #3b82f6; transition: all 0.3s ease; }
     .drop-zone:hover, .drop-zone.drag-over { border-color: #60a5fa; background-color: rgba(59, 130, 246, 0.1); }
-    .source-btn { transition: all 0.2s ease; }
-    .source-btn:hover { transform: translateY(-2px); }
-    .chat-message { animation: fadeIn 0.3s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     
     /* Markdown Styles */
     .markdown-content h1, .markdown-content h2 { font-weight: 600; margin: 1em 0 0.5em; color: #e2e8f0; }
@@ -46,7 +53,7 @@
     .markdown-content pre code { background: none; padding: 0; color: #e2e8f0; }
     .markdown-content blockquote { border-left: 4px solid #3b82f6; padding-left: 1em; color: #94a3b8; font-style: italic; }
 
-    /* Animation Utilities */
+    /* Animations */
     .thinking-dots span { animation: bounce 1.4s infinite ease-in-out both; }
     .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
     .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
@@ -55,7 +62,7 @@
 </head>
 <body class="bg-[#0f0f23] min-h-screen text-gray-100 font-sans selection:bg-blue-500/30">
   
-  <header class="border-b border-gray-800 bg-[#1a1a2e] sticky top-0 z-30">
+  <header class="border-b border-gray-800 bg-[#1a1a2e] sticky top-0 z-30 shadow-md">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -70,7 +77,7 @@
         <button onclick="createNewNotebook()" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 border border-gray-700 transition-colors flex items-center gap-2">
           <i class="fas fa-plus"></i> New Notebook
         </button>
-        <button onclick="clearAllSources()" class="text-gray-500 hover:text-red-400 text-sm p-2">
+        <button onclick="clearAllSources()" class="text-gray-500 hover:text-red-400 text-sm p-2 transition-colors" title="Clear all sources">
           <i class="fas fa-trash"></i>
         </button>
       </div>
@@ -81,18 +88,40 @@
     
     <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden h-full">
       
-      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-shrink-0">
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-shrink-0 shadow-lg">
         <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
           <i class="fas fa-cloud-upload-alt text-blue-500"></i> Add Sources
         </h2>
         
-        <div id="dropZone" class="drop-zone rounded-xl p-6 text-center cursor-pointer mb-4 bg-[#0f0f23]">
-          <div class="w-12 h-12 mx-auto mb-3 bg-blue-500/10 rounded-full flex items-center justify-center">
-            <i class="fas fa-file-import text-xl text-blue-500"></i>
+        <div id="dropZone" class="drop-zone rounded-xl p-6 text-center cursor-pointer mb-4 bg-[#0f0f23] relative group">
+          <div class="w-12 h-12 mx-auto mb-3 bg-blue-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+            <i class="fas fa-layer-group text-xl text-blue-500"></i>
           </div>
-          <p class="text-gray-300 text-sm font-medium">Click or Drop files here</p>
-          <p class="text-xs text-gray-500 mt-1">PDF, Docs, Text, Images</p>
-          <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.md,.docx,.doc,.jpg,.jpeg,.png,.webp">
+          <h3 class="text-gray-200 font-medium text-sm">Mixed Source Upload</h3>
+          <p class="text-xs text-gray-500 mt-2 leading-relaxed">
+            Drag & Drop files 
+            <span class="text-gray-600 mx-1">|</span> 
+            Paste YouTube Links 
+            <span class="text-gray-600 mx-1">|</span> 
+            Add Websites
+          </p>
+          <p class="text-[10px] text-blue-400 mt-2 border border-blue-500/20 rounded-full px-2 py-1 inline-block">
+            ✨ Build your queue below, then process all at once
+          </p>
+          <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.md,.docx,.doc,.jpg,.jpeg,.png,.webp" multiple>
+        </div>
+
+        <div id="pendingFilesContainer" class="hidden mb-4 animate-fadeIn">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">Queue</span>
+            <button onclick="clearPendingItems()" class="text-xs text-gray-500 hover:text-red-400">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+          <div id="pendingItemsList" class="flex flex-wrap gap-2 mb-3 max-h-40 overflow-y-auto pr-1"></div>
+          <button onclick="uploadBatchMixed()" id="uploadBatchBtn" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+            <i class="fas fa-play"></i> Process Queue
+          </button>
         </div>
         
         <div class="grid grid-cols-3 gap-2">
@@ -111,7 +140,7 @@
         </div>
       </div>
       
-      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-1 flex flex-col min-h-0">
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-1 flex flex-col min-h-0 shadow-lg">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400">
             Current Sources
@@ -119,7 +148,7 @@
           <span id="sourceCount" class="bg-blue-900/50 text-blue-300 text-xs px-2 py-0.5 rounded-full border border-blue-500/20">0</span>
         </div>
         
-        <div id="sourcesList" class="space-y-2 overflow-y-auto pr-1 flex-1">
+        <div id="sourcesList" class="space-y-3 overflow-y-auto pr-1 flex-1 pl-2 pt-2">
           <div class="text-center py-10 opacity-40">
             <i class="fas fa-layer-group text-3xl mb-2"></i>
             <p class="text-sm">No sources added yet</p>
@@ -130,7 +159,7 @@
     
     <div class="lg:col-span-8 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-2xl">
       
-      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e]">
+      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e] z-10">
         <div class="flex items-center gap-2">
           <i class="fas fa-sparkles text-yellow-500"></i>
           <span class="font-semibold text-gray-200">AI Notebook Assistant</span>
@@ -142,11 +171,11 @@
       
       <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth bg-[#0f0f23]">
         <div class="text-center py-12">
-          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5">
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5 shadow-lg">
             <i class="fas fa-robot text-2xl text-blue-400"></i>
           </div>
           <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
-          <p class="text-gray-500 text-sm max-w-xs mx-auto">Upload documents or add links to the left, then ask me anything about them.</p>
+          <p class="text-gray-500 text-sm max-w-xs mx-auto">Add Files, YouTube links, or Websites to the left queue, process them, and then ask me anything.</p>
         </div>
       </div>
       
@@ -157,32 +186,56 @@
             oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
             onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
           
-          <button id="sendBtn" onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-0.5">
+          <button id="sendBtn" onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-0.5 shadow-lg">
             <i class="fas fa-paper-plane text-sm"></i>
           </button>
         </div>
-        <p class="text-[10px] text-gray-600 text-center mt-2">AI can make mistakes. Check important info.</p>
+        <p class="text-[10px] text-gray-600 text-center mt-2">AI citations are helpful but verify important details.</p>
       </div>
     </div>
   </main>
 
-  <div id="urlModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
-    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl transform transition-all scale-100">
+  <div id="urlModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4 animate-fadeIn">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl">
       <div class="p-5 border-b border-gray-800 flex justify-between items-center">
-        <h3 id="modalTitle" class="font-semibold text-white flex items-center gap-2">Add Link</h3>
+        <h3 id="modalTitle" class="font-semibold text-white flex items-center gap-2">Add Links</h3>
         <button onclick="closeModal('urlModal')" class="text-gray-500 hover:text-white"><i class="fas fa-times"></i></button>
       </div>
       <div class="p-5">
-        <input type="url" id="urlInput" placeholder="https://..." class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white mb-4">
-        <div class="flex justify-end gap-2">
-          <button onclick="closeModal('urlModal')" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
-          <button onclick="submitUrl()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Add Source</button>
+        
+        <!-- Alert instruction: One link per line -->
+        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 mb-4 flex items-start gap-3">
+          <i class="fas fa-exclamation-circle text-yellow-500 mt-0.5"></i>
+          <div>
+            <p class="text-sm text-yellow-200 font-medium">Each link should be on a separate line.</p>
+            <p class="text-xs text-yellow-200/70 mt-1">Press <kbd class="bg-yellow-900/50 px-1.5 py-0.5 rounded text-yellow-300">Enter</kbd> Enter to move to the next line after each URL. Do not enter multiple links on the same line.</p>
+          </div>
+        </div>
+
+        <div class="relative">
+            <textarea id="urlInput" rows="5" 
+              class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white resize-none font-mono leading-relaxed" 
+              placeholder="Paste links here..."></textarea>
+            
+            <div class="absolute bottom-2 right-2 text-[10px] text-gray-500 bg-[#0f0f23] px-2 rounded border border-gray-800">
+                One per line
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mt-4">
+          <span class="text-xs text-gray-500" id="urlHelpText">Supports batch entry</span>
+          <div class="flex gap-2">
+            <button onclick="closeModal('urlModal')" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
+            <button onclick="addUrlToQueue()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-900/30">
+              <i class="fas fa-plus mr-1"></i> Add 
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="textModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+  <div id="textModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4 animate-fadeIn">
     <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-lg border border-gray-700 shadow-2xl">
       <div class="p-5 border-b border-gray-800 flex justify-between items-center">
         <h3 class="font-semibold text-white flex items-center gap-2"><i class="fas fa-paste text-purple-500"></i> Paste Text</h3>
@@ -193,13 +246,13 @@
         <textarea id="textInput" placeholder="Paste content here..." class="w-full h-48 bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white resize-none font-mono"></textarea>
         <div class="flex justify-end gap-2">
           <button onclick="closeModal('textModal')" class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
-          <button onclick="submitText()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium">Add Source</button>
+          <button onclick="submitText()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium shadow-lg shadow-purple-900/30">Add Source</button>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="loadingOverlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-[60] backdrop-blur-sm flex-col">
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[60] backdrop-blur-sm flex-col animate-fadeIn">
     <div class="relative w-16 h-16 mb-4">
       <div class="absolute inset-0 border-4 border-gray-700 rounded-full"></div>
       <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
@@ -207,7 +260,7 @@
     <h3 id="loadingText" class="text-white font-medium text-lg">Processing...</h3>
     <p id="loadingDetail" class="text-gray-400 text-sm mt-1">Please wait</p>
     <div class="w-64 bg-gray-800 rounded-full h-1.5 mt-4 overflow-hidden">
-      <div id="progressBar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+      <div id="progressBar" class="bg-blue-500 h-full transition-all duration-300 shadow-[0_0_10px_#3b82f6]" style="width: 0%"></div>
     </div>
   </div>
 
@@ -227,7 +280,8 @@
     let state = {
       notebookId: '',
       sources: [],
-      isProcessing: false
+      isProcessing: false,
+      pendingItems: [] // Changed from pendingFiles to support URLs
     };
 
     // ============================================
@@ -240,7 +294,6 @@
     });
 
     function initNotebook() {
-      // 1. Get or Create Notebook ID
       let storedId = localStorage.getItem('notebook_id');
       if (!storedId) {
         storedId = 'nb_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
@@ -249,14 +302,12 @@
       state.notebookId = storedId;
       document.getElementById('notebookIdDisplay').textContent = `ID: ${state.notebookId}`;
 
-      // 2. Load Sources from LocalStorage
       const storedSources = localStorage.getItem(`sources_${state.notebookId}`);
       if (storedSources) {
         state.sources = JSON.parse(storedSources);
         renderSources();
       }
       
-      // 3. Load Chat History (Optional - simple version)
       const storedChat = localStorage.getItem(`chat_${state.notebookId}`);
       if (storedChat) {
         document.getElementById('chatMessages').innerHTML = storedChat;
@@ -271,258 +322,7 @@
     }
 
     // ============================================
-    // FILE UPLOAD LOGIC
-    // ============================================
-    function setupDropZone() {
-      const dropZone = document.getElementById('dropZone');
-      const fileInput = document.getElementById('fileInput');
-
-      dropZone.onclick = () => fileInput.click();
-      
-      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over', 'bg-gray-800'); };
-      dropZone.ondragleave = () => { dropZone.classList.remove('drag-over', 'bg-gray-800'); };
-      dropZone.ondrop = (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over', 'bg-gray-800');
-        if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0]);
-      };
-
-      fileInput.onchange = (e) => {
-        if (e.target.files[0]) {
-          handleFileUpload(e.target.files[0]);
-          fileInput.value = '';
-        }
-      };
-    }
-
-    async function handleFileUpload(file) {
-      // Validate
-      if (file.size > 10 * 1024 * 1024) return showToast('File too large (Max 10MB)', 'error');
-      
-      showLoading('Uploading File', file.name);
-      
-      try {
-        const formData = new FormData();
-        formData.append('data', file);
-        formData.append('action', 'upload_file');
-        formData.append('notebookId', state.notebookId); // <--- CRITICAL: Send Notebook ID
-
-        const res = await fetch(ENDPOINTS.start, { method: 'POST', body: formData });
-        const data = await res.json();
-        
-        if (!data.jobId) throw new Error(data.error || 'Upload failed');
-        
-        await pollJob(data.jobId, file.name, getFileType(file.name));
-
-      } catch (err) {
-        hideLoading();
-        showToast(err.message, 'error');
-      }
-    }
-
-    // ============================================
-    // URL & TEXT LOGIC
-    // ============================================
-    function showUrlInput(type) {
-      const modal = document.getElementById('urlModal');
-      const input = document.getElementById('urlInput');
-      const title = document.getElementById('modalTitle');
-      
-      input.value = '';
-      input.dataset.type = type;
-      
-      if (type === 'youtube') {
-        title.innerHTML = '<i class="fab fa-youtube text-red-500"></i> Add YouTube Video';
-        input.placeholder = 'https://youtube.com/watch?v=...';
-      } else {
-        title.innerHTML = '<i class="fas fa-globe text-blue-500"></i> Add Website';
-        input.placeholder = 'https://example.com';
-      }
-      
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      setTimeout(() => input.focus(), 100);
-    }
-
-    async function submitUrl() {
-      const input = document.getElementById('urlInput');
-      const url = input.value.trim();
-      if (!url) return;
-      
-      closeModal('urlModal');
-      const type = input.dataset.type;
-      
-      showLoading(`Processing ${type === 'youtube' ? 'Video' : 'Website'}`, url);
-      
-      try {
-        const res = await fetch(ENDPOINTS.start, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'new_source', 
-            url, 
-            notebookId: state.notebookId // <--- CRITICAL
-          })
-        });
-        
-        const data = await res.json();
-        if (!data.jobId) throw new Error(data.error || 'Failed to start');
-        
-        await pollJob(data.jobId, url, type);
-        
-      } catch (err) {
-        hideLoading();
-        showToast(err.message, 'error');
-      }
-    }
-
-    function showTextInput() {
-      document.getElementById('textInput').value = '';
-      document.getElementById('textTitle').value = '';
-      const modal = document.getElementById('textModal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    async function submitText() {
-      const text = document.getElementById('textInput').value.trim();
-      const title = document.getElementById('textTitle').value.trim() || 'Pasted Note';
-      
-      if (!text) return;
-      closeModal('textModal');
-      
-      showLoading('Processing Text', title);
-      
-      try {
-        const res = await fetch(ENDPOINTS.start, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'paste_text', 
-            text, 
-            title,
-            notebookId: state.notebookId // <--- CRITICAL
-          })
-        });
-        
-        const data = await res.json();
-        if (!data.jobId) throw new Error(data.error);
-        
-        await pollJob(data.jobId, title, 'text');
-        
-      } catch (err) {
-        hideLoading();
-        showToast(err.message, 'error');
-      }
-    }
-
-    // ============================================
-    // POLLING ENGINE
-    // ============================================
-    async function pollJob(jobId, sourceTitle, sourceType) {
-      let attempts = 0;
-      const maxAttempts = 60; // 2 minutes
-      const pBar = document.getElementById('progressBar');
-      const detail = document.getElementById('loadingDetail');
-      
-      const interval = setInterval(async () => {
-        attempts++;
-        try {
-          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
-          const data = await res.json();
-          
-          // Fake progress based on attempts
-          const progress = Math.min((attempts / 20) * 100, 90);
-          pBar.style.width = `${progress}%`;
-          
-          if (data.status === 'completed') {
-            clearInterval(interval);
-            pBar.style.width = '100%';
-            
-            // Add to State
-            const newSource = {
-              id: jobId,
-              title: data.result?.title || sourceTitle,
-              type: sourceType,
-              summary: data.result?.summary,
-              addedAt: new Date().toISOString()
-            };
-            
-            state.sources.push(newSource);
-            saveState();
-            renderSources();
-            hideLoading();
-            showToast('Source added successfully!', 'success');
-            
-            // Add summary to chat
-            addMessage('assistant', `✅ **Added: ${newSource.title}**\n\n${newSource.summary || 'Ready to use.'}`);
-            
-          } else if (data.status === 'error') {
-            throw new Error(data.message || 'Processing failed');
-          }
-          
-        } catch (err) {
-          if (attempts >= maxAttempts || err.message !== 'Job not found') {
-            clearInterval(interval);
-            hideLoading();
-            showToast(err.message || 'Timeout', 'error');
-          }
-        }
-      }, 2000);
-    }
-
-    // ============================================
-    // CHAT LOGIC
-    // ============================================
-    async function sendMessage() {
-      const input = document.getElementById('chatInput');
-      const msg = input.value.trim();
-      if (!msg || state.isProcessing) return;
-      
-      if (state.sources.length === 0) {
-        return showToast('Please add a source first', 'error');
-      }
-
-      state.isProcessing = true;
-      input.value = '';
-      input.style.height = 'auto'; // Reset height
-      document.getElementById('sendBtn').disabled = true;
-      
-      addMessage('user', msg);
-      const thinkingId = addThinkingBubble();
-      
-      try {
-        const res = await fetch(ENDPOINTS.start, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'chat', 
-            message: msg,
-            notebookId: state.notebookId // <--- SEND NOTEBOOK ID
-          })
-        });
-        
-        const data = await res.json();
-        removeMessage(thinkingId);
-        
-        if (data.response) {
-          addMessage('assistant', data.response);
-        } else {
-          addMessage('system', '⚠️ No response received.');
-        }
-        
-      } catch (err) {
-        removeMessage(thinkingId);
-        addMessage('system', `❌ Error: ${err.message}`);
-      } finally {
-        state.isProcessing = false;
-        document.getElementById('sendBtn').disabled = false;
-        input.focus();
-      }
-    }
-
-    // ============================================
-    // UI HELPERS
+    // RENDER FUNCTIONS (IMPROVED CITATIONS)
     // ============================================
     function renderSources() {
       const list = document.getElementById('sourcesList');
@@ -534,9 +334,12 @@
       }
       
       list.innerHTML = state.sources.map((s, idx) => `
-        <div class="bg-[#0f0f23] hover:bg-gray-800 p-3 rounded-xl border border-gray-800 hover:border-blue-500/30 transition-all group relative animate-fadeIn">
+        <div class="bg-[#0f0f23] hover:bg-gray-800 p-3 rounded-xl border border-gray-800 hover:border-blue-500/30 transition-all group relative animate-fadeIn ml-2">
+          <div class="absolute -left-3 -top-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-[#1a1a2e] shadow-md z-10">
+            ${idx + 1}
+          </div>
           <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-lg ${getIconBg(s.type)} flex items-center justify-center flex-shrink-0">
+            <div class="w-8 h-8 rounded-lg ${getIconBg(s.type)} flex items-center justify-center flex-shrink-0 shadow-sm">
               <i class="${getIconClass(s.type)} text-white text-xs"></i>
             </div>
             <div class="min-w-0 flex-1">
@@ -553,7 +356,6 @@
 
     function addMessage(role, text) {
       const container = document.getElementById('chatMessages');
-      // Remove welcome screen if exists
       const welcome = container.querySelector('.text-center.py-12');
       if (welcome) welcome.remove();
 
@@ -561,28 +363,419 @@
       const id = 'msg-' + Date.now();
       
       let contentHtml = text;
+
       if (role === 'assistant' && typeof marked !== 'undefined') {
-        contentHtml = marked.parse(text);
-      } else if (role === 'system') {
-        contentHtml = `<span class="text-red-400">${text}</span>`;
+        let formattedText = text.replace(/\[(?:Source\s+)?(\d+)\]/gi, (match, number) => {
+            const index = parseInt(number) - 1;
+            const source = state.sources[index];
+            if (source) {
+                const shortTitle = source.title.length > 40 ? source.title.substring(0, 40) + '...' : source.title;
+                const iconClass = getIconClass(source.type);
+                return `<span class="text-blue-400 font-bold cursor-help hover:text-blue-300 relative group inline-block decoration-dotted border-b border-blue-500/30" tabindex="0">[${number}]<span class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-gray-100 text-xs rounded-lg border border-gray-700 whitespace-nowrap shadow-xl z-50 flex items-center gap-2"><i class="${iconClass}"></i> ${shortTitle}</span></span>`;
+            }
+            return `<span class="text-blue-400 font-bold">[${number}]</span>`;
+        });
+        contentHtml = marked.parse(formattedText);
+      } 
+      else if (role === 'system') {
+        contentHtml = `<span class="text-red-400 font-mono text-xs"><i class="fas fa-exclamation-triangle mr-1"></i> ${text}</span>`;
       }
 
       const html = `
-        <div id="${id}" class="flex gap-4 ${isUser ? 'flex-row-reverse' : ''} chat-message">
-          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600' : 'bg-gradient-to-br from-green-500 to-teal-600'}">
+        <div id="${id}" class="flex gap-4 ${isUser ? 'flex-row-reverse' : ''} chat-message animate-fadeIn">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600 shadow-blue-900/50 shadow-lg' : 'bg-gradient-to-br from-green-500 to-teal-600 shadow-green-900/50 shadow-lg'}">
             <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-xs text-white"></i>
           </div>
-          <div class="max-w-[85%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-5 py-3.5">
+          <div class="max-w-[85%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-5 py-3.5 shadow-sm">
             <div class="text-sm text-gray-200 leading-relaxed ${role === 'assistant' ? 'markdown-content' : ''}">${contentHtml}</div>
           </div>
         </div>
       `;
-      
       container.insertAdjacentHTML('beforeend', html);
       container.scrollTop = container.scrollHeight;
-      
-      // Save Chat History simple
       localStorage.setItem(`chat_${state.notebookId}`, container.innerHTML);
+    }
+
+    // ============================================
+    // BATCH MIXED LOGIC (FILES + URLS)
+    // ============================================
+    
+    // 1. Files
+    function setupDropZone() {
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+
+      dropZone.onclick = () => fileInput.click();
+      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over', 'bg-gray-800'); };
+      dropZone.ondragleave = () => { dropZone.classList.remove('drag-over', 'bg-gray-800'); };
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over', 'bg-gray-800');
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) addFilesToQueue(files);
+      };
+      fileInput.onchange = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) addFilesToQueue(files);
+        fileInput.value = '';
+      };
+    }
+
+    function addFilesToQueue(files) {
+      const validFiles = files.filter(file => {
+        if (file.size > 10 * 1024 * 1024) { showToast(`${file.name} too large`, 'error'); return false; }
+        return true;
+      });
+      validFiles.forEach(file => {
+        state.pendingItems.push({ type: 'file', data: file, name: file.name });
+      });
+      renderPendingItems();
+    }
+
+    // 2. URLs (Bulk)
+    function showUrlInput(type) {
+      const modal = document.getElementById('urlModal');
+      const input = document.getElementById('urlInput');
+      const title = document.getElementById('modalTitle');
+      const help = document.getElementById('urlHelpText');
+      
+      input.value = '';
+      input.dataset.type = type;
+      
+      if (type === 'youtube') {
+        title.innerHTML = '<i class="fab fa-youtube text-red-500"></i> Add YouTube Videos';
+        input.placeholder = 'https://youtube.com/watch?v=video1\nhttps://youtu.be/video2\nhttps://youtube.com/watch?v=video3';
+        help.textContent = 'Paste multiple YouTube links (one per line)';
+      } else {
+        title.innerHTML = '<i class="fas fa-globe text-blue-500"></i> Add Websites';
+        input.placeholder = 'https://site1.com/article\nhttps://site2.com/blog\nhttps://site3.com/news';
+        help.textContent = 'Paste multiple Website URLs (one per line)';
+      }
+      
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => input.focus(), 100);
+    }
+
+    function addUrlToQueue() {
+      const input = document.getElementById('urlInput');
+      const rawText = input.value.trim();
+      const type = input.dataset.type;
+      
+      if (!rawText) return;
+      
+      const urls = rawText.split(/\n+/).map(u => u.trim()).filter(u => u.length > 0);
+      if (urls.length === 0) return;
+
+      let addedCount = 0;
+      urls.forEach(url => {
+        const isDuplicate = state.pendingItems.some(item => item.data === url);
+        if (!isDuplicate) {
+            state.pendingItems.push({ type: 'url', subType: type, data: url, name: url });
+            addedCount++;
+        }
+      });
+      
+      closeModal('urlModal');
+      renderPendingItems();
+      if (addedCount > 0) showToast(`Added ${addedCount} links to queue`, 'success');
+    }
+
+    // 3. Render Queue
+    function renderPendingItems() {
+      const container = document.getElementById('pendingFilesContainer');
+      const list = document.getElementById('pendingItemsList');
+      const btn = document.getElementById('uploadBatchBtn');
+      
+      if (state.pendingItems.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      btn.innerHTML = `<i class="fas fa-play"></i> Process ${state.pendingItems.length} Sources`;
+
+      list.innerHTML = state.pendingItems.map((item, idx) => {
+        let icon = 'fas fa-file text-gray-400';
+        if (item.type === 'file') icon = getFileIcon(item.name);
+        else if (item.subType === 'youtube') icon = 'fab fa-youtube text-red-500';
+        else if (item.subType === 'website') icon = 'fas fa-globe text-blue-400';
+
+        const displayName = item.name.length > 35 ? item.name.substring(0, 32) + '...' : item.name;
+
+        return `
+        <div class="file-chip flex items-center gap-2 bg-[#0f0f23] border border-gray-700 rounded-lg px-3 py-1.5 animate-fadeIn group hover:border-blue-500 transition-colors w-full justify-between">
+          <div class="flex items-center gap-2 overflow-hidden">
+            <i class="${icon} text-xs flex-shrink-0"></i>
+            <span class="text-xs text-gray-300 truncate" title="${item.name}">${displayName}</span>
+          </div>
+          <button onclick="removePendingItem(${idx})" class="text-gray-500 hover:text-red-400 ml-2">
+            <i class="fas fa-times text-[10px]"></i>
+          </button>
+        </div>
+      `}).join('');
+    }
+
+    function removePendingItem(index) {
+      state.pendingItems.splice(index, 1);
+      renderPendingItems();
+    }
+
+    function clearPendingItems() {
+      state.pendingItems = [];
+      renderPendingItems();
+    }
+
+    // 4. Upload Mixed Batch
+    // 4. Upload Mixed Batch (Smart Routing - Xử lý thông minh)
+async function uploadBatchMixed() {
+      if (state.pendingItems.length === 0) return;
+      
+      const totalItems = state.pendingItems.length;
+      const firstItem = state.pendingItems[0];
+
+      // === TRƯỜNG HỢP 1: XỬ LÝ 1 FILE DUY NHẤT ===
+      if (totalItems === 1 && firstItem.type === 'file') {
+         showLoading(`Uploading 1 file`, firstItem.name);
+         try {
+            const formData = new FormData();
+            formData.append('data', firstItem.data); 
+            formData.append('action', 'upload_file'); 
+            formData.append('notebookId', state.notebookId);
+
+            const res = await fetch(ENDPOINTS.start, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!data.jobId) throw new Error(data.error || 'Upload failed');
+            
+            state.pendingItems = [];
+            renderPendingItems();
+            await pollJob(data.jobId, firstItem.name, getFileType(firstItem.name));
+         } catch (err) {
+            hideLoading();
+            showToast(err.message, 'error');
+         }
+         return;
+      }
+
+      // === TRƯỜNG HỢP 2: XỬ LÝ 1 URL DUY NHẤT (Thêm đoạn này) ===
+      if (totalItems === 1 && firstItem.type === 'url') {
+         showLoading(`Processing URL`, firstItem.name);
+         try {
+            // Workflow của bạn dùng action 'new_source' cho URL lẻ
+            // Và yêu cầu body.url (dạng chuỗi) chứ không phải urls (dạng mảng)
+            const payload = {
+                action: 'new_source',
+                url: firstItem.data,
+                notebookId: state.notebookId
+            };
+
+            const res = await fetch(ENDPOINTS.start, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (!data.jobId) throw new Error(data.error || 'Upload failed');
+            
+            state.pendingItems = [];
+            renderPendingItems();
+            // Lưu ý: Bạn cần đảm bảo hàm pollJob hoặc pollBatchJob phù hợp logic này
+            // Ở đây tạm dùng pollBatchJob vì nó tổng quát hơn
+            await pollBatchJob(data.jobId, 1); 
+            
+         } catch (err) {
+            hideLoading();
+            showToast(err.message, 'error');
+         }
+         return;
+      }
+
+      // === TRƯỜNG HỢP 3: BATCH UPLOAD (Nhiều item hoặc fallback) ===
+      showLoading(`Processing ${totalItems} mixed sources`, "Please wait...");
+      
+      try {
+        const formData = new FormData();
+        const urls = [];
+
+        state.pendingItems.forEach(item => {
+          if (item.type === 'file') {
+            formData.append('files', item.data); 
+          } else if (item.type === 'url') {
+            urls.push(item.data);
+          }
+        });
+
+        if (urls.length > 0) {
+          formData.append('urls', JSON.stringify(urls));
+        }
+
+        formData.append('action', 'upload_batch'); 
+        formData.append('notebookId', state.notebookId);
+        formData.append('fileCount', totalItems.toString());
+
+        const res = await fetch(ENDPOINTS.start, { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (!data.jobId) throw new Error(data.error || 'Upload failed');
+        
+        state.pendingItems = [];
+        renderPendingItems();
+        await pollBatchJob(data.jobId, totalItems);
+
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+    // ============================================
+    // POLLING ENGINE
+    // ============================================
+    async function pollBatchJob(jobId, fileCount) {
+      let attempts = 0;
+      const maxAttempts = 180; 
+      const pBar = document.getElementById('progressBar');
+      const detail = document.getElementById('loadingDetail');
+      
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+          
+          const progress = Math.min((attempts / 60) * 100, 95);
+          pBar.style.width = `${progress}%`;
+          
+          if (data.status === 'completed') {
+            clearInterval(interval);
+            pBar.style.width = '100%';
+            
+            const result = data.result || {};
+            if (result.sources && Array.isArray(result.sources)) {
+              result.sources.forEach(src => {
+                state.sources.push({
+                  id: src.id || jobId,
+                  title: src.title,
+                  type: src.type,
+                  summary: src.summary,
+                  addedAt: new Date().toISOString()
+                });
+              });
+            }
+            
+            saveState();
+            renderSources();
+            hideLoading();
+            showToast(`${fileCount} sources processed!`, 'success');
+            
+            const summary = result.combinedSummary || result.summary || 'Content processed successfully.';
+            const titles = result.sources ? result.sources.map(s => s.title).join(', ') : `${fileCount} items`;
+            addMessage('assistant', `✅ **Added ${fileCount} sources:** ${titles}\n\n${summary}`);
+            
+          } else if (data.status === 'error') {
+            throw new Error(data.message || 'Processing failed');
+          } else {
+            detail.textContent = data.progress || `Processing... (${attempts}s)`;
+          }
+          
+        } catch (err) {
+          if (attempts >= maxAttempts) {
+            clearInterval(interval);
+            hideLoading();
+            showToast('Timeout - Check server logs', 'error');
+          }
+        }
+      }, 2000);
+    }
+
+    // ============================================
+    // UTILS & UI
+    // ============================================
+    function showTextInput() {
+      document.getElementById('textInput').value = '';
+      document.getElementById('textTitle').value = '';
+      const modal = document.getElementById('textModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    async function submitText() {
+      const text = document.getElementById('textInput').value.trim();
+      const title = document.getElementById('textTitle').value.trim() || 'Pasted Note';
+      if (!text) return;
+      closeModal('textModal');
+      
+      // Treat text paste as single item batch for simplicity or use existing logic
+      // Here we use existing single logic for paste as it's usually one-off
+      showLoading('Processing Text', title);
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'paste_text', text, title, notebookId: state.notebookId })
+        });
+        const data = await res.json();
+        if (!data.jobId) throw new Error(data.error);
+        
+        // Simple poll for single item
+        let attempts = 0;
+        const interval = setInterval(async () => {
+            attempts++;
+            const statusRes = await fetch(`${ENDPOINTS.status}?jobId=${data.jobId}`);
+            const statusData = await statusRes.json();
+            if (statusData.status === 'completed') {
+                clearInterval(interval);
+                hideLoading();
+                state.sources.push({
+                    id: data.jobId,
+                    title: statusData.result.title,
+                    type: 'text',
+                    summary: statusData.result.summary
+                });
+                saveState();
+                renderSources();
+                addMessage('assistant', `✅ **Added Note:** ${title}\n\n${statusData.result.summary}`);
+            }
+        }, 2000);
+
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg || state.isProcessing) return;
+      if (state.sources.length === 0) return showToast('Please add a source first', 'error');
+
+      state.isProcessing = true;
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('sendBtn').disabled = true;
+      
+      addMessage('user', msg);
+      const thinkingId = addThinkingBubble();
+      
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'chat', message: msg, notebookId: state.notebookId })
+        });
+        const data = await res.json();
+        removeMessage(thinkingId);
+        if (data.response) addMessage('assistant', data.response);
+        else addMessage('system', '⚠️ No response received.');
+      } catch (err) {
+        removeMessage(thinkingId);
+        addMessage('system', `❌ Error: ${err.message}`);
+      } finally {
+        state.isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+        input.focus();
+      }
     }
 
     function addThinkingBubble() {
@@ -590,61 +783,20 @@
       const id = 'thinking-' + Date.now();
       container.insertAdjacentHTML('beforeend', `
         <div id="${id}" class="flex gap-4 chat-message">
-          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center flex-shrink-0">
-             <i class="fas fa-robot text-xs text-white"></i>
-          </div>
-          <div class="bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4">
-            <div class="thinking-dots flex gap-1">
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-            </div>
-          </div>
-        </div>
-      `);
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center flex-shrink-0 animate-pulse"><i class="fas fa-robot text-xs text-white"></i></div>
+          <div class="bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4"><div class="thinking-dots flex gap-1"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span></div></div>
+        </div>`);
       container.scrollTop = container.scrollHeight;
       return id;
     }
 
-    function removeMessage(id) {
-      document.getElementById(id)?.remove();
-    }
-
-    function clearChat() {
-      document.getElementById('chatMessages').innerHTML = '';
-      localStorage.removeItem(`chat_${state.notebookId}`);
-      // Restore welcome message
-      document.getElementById('chatMessages').innerHTML = `
-        <div class="text-center py-12">
-          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5">
-            <i class="fas fa-robot text-2xl text-blue-400"></i>
-          </div>
-          <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
-          <p class="text-gray-500 text-sm max-w-xs mx-auto">Upload documents or add links to the left, then ask me anything about them.</p>
-        </div>
-      `;
-    }
-
-    // ============================================
-    // UTILS
-    // ============================================
-    function saveState() {
-      localStorage.setItem(`sources_${state.notebookId}`, JSON.stringify(state.sources));
-    }
-
-    function deleteSource(index) {
-      if(confirm('Remove this source?')) {
-        state.sources.splice(index, 1);
-        saveState();
-        renderSources();
-      }
-    }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
-      document.getElementById(id).classList.remove('flex');
-    }
-
+    function removeMessage(id) { document.getElementById(id)?.remove(); }
+    function clearChat() { document.getElementById('chatMessages').innerHTML = ''; localStorage.removeItem(`chat_${state.notebookId}`); document.getElementById('chatMessages').innerHTML = `<div class="text-center py-12 animate-fadeIn"><div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5 shadow-lg"><i class="fas fa-robot text-2xl text-blue-400"></i></div><h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3><p class="text-gray-500 text-sm max-w-xs mx-auto">Add Files, YouTube links, or Websites to the left queue, process them, and then ask me anything.</p></div>`; }
+    function clearAllSources() { if(confirm('Remove all sources?')) { state.sources = []; saveState(); renderSources(); showToast('All sources cleared', 'success'); } }
+    function saveState() { localStorage.setItem(`sources_${state.notebookId}`, JSON.stringify(state.sources)); }
+    function deleteSource(index) { if(confirm('Remove this source?')) { state.sources.splice(index, 1); saveState(); renderSources(); } }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+    
     function showLoading(text, detail) {
       document.getElementById('loadingText').textContent = text;
       document.getElementById('loadingDetail').textContent = detail;
@@ -652,23 +804,15 @@
       document.getElementById('loadingOverlay').classList.remove('hidden');
       document.getElementById('loadingOverlay').classList.add('flex');
     }
-
-    function hideLoading() {
-      document.getElementById('loadingOverlay').classList.add('hidden');
-      document.getElementById('loadingOverlay').classList.remove('flex');
-    }
-
+    function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); document.getElementById('loadingOverlay').classList.remove('flex'); }
+    
     function showToast(msg, type) {
       const toast = document.createElement('div');
       toast.className = `fixed bottom-5 right-5 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg transform transition-all translate-y-10 opacity-0 z-[70] flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-green-600'}`;
       toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i> ${msg}`;
       document.body.appendChild(toast);
-      
       requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
-      setTimeout(() => {
-        toast.classList.add('translate-y-10', 'opacity-0');
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
+      setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
     }
 
     function getFileType(name) {
@@ -678,28 +822,13 @@
       if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return 'image';
       return 'text';
     }
-
+    function getFileIcon(name) { const type = getFileType(name); return getIconClass(type); }
     function getIconClass(type) {
-      const map = {
-        'pdf': 'fas fa-file-pdf',
-        'docx': 'fas fa-file-word',
-        'image': 'fas fa-file-image',
-        'youtube': 'fab fa-youtube',
-        'website': 'fas fa-globe',
-        'text': 'fas fa-file-alt'
-      };
+      const map = { 'pdf': 'fas fa-file-pdf', 'docx': 'fas fa-file-word', 'image': 'fas fa-file-image', 'youtube': 'fab fa-youtube', 'website': 'fas fa-globe', 'text': 'fas fa-file-alt' };
       return map[type] || 'fas fa-file';
     }
-
     function getIconBg(type) {
-      const map = {
-        'pdf': 'bg-red-500',
-        'docx': 'bg-blue-500',
-        'image': 'bg-green-500',
-        'youtube': 'bg-red-600',
-        'website': 'bg-indigo-500',
-        'text': 'bg-gray-500'
-      };
+      const map = { 'pdf': 'bg-red-500', 'docx': 'bg-blue-500', 'image': 'bg-green-500', 'youtube': 'bg-red-600', 'website': 'bg-indigo-500', 'text': 'bg-gray-500' };
       return map[type] || 'bg-gray-500';
     }
   </script>
