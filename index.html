@@ -494,14 +494,23 @@
 
       let contentHtml = text;
 
-      if (role === 'assistant' && typeof marked !== 'undefined') {
+     if (role === 'assistant' && typeof marked !== 'undefined') {
         let formattedText = text.replace(/\[(?:Source\s+)?(\d+)\]/gi, (match, number) => {
           const index = parseInt(number) - 1;
           const source = state.sources[index];
           if (source) {
+            // Cắt ngắn tiêu đề nếu quá dài để hiển thị đẹp
             const shortTitle = source.title.length > 40 ? source.title.substring(0, 40) + '...' : source.title;
             const iconClass = getIconClass(source.type);
-            return `<span class="text-blue-400 font-bold cursor-help hover:text-blue-300 relative group inline-block decoration-dotted border-b border-blue-500/30" tabindex="0">[${number}]<span class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-gray-100 text-xs rounded-lg border border-gray-700 whitespace-nowrap shadow-xl z-50 flex items-center gap-2"><i class="${iconClass}"></i> ${shortTitle}</span></span>`;
+            
+            // FIX: Thêm attribute title="${source.title}" vào thẻ span cha
+            // Điều này giúp hiển thị tên nguồn ngay lập tức khi hover chuột (browser native tooltip)
+            return `<span title="${source.title}" class="text-blue-400 font-bold cursor-help hover:text-blue-300 relative group inline-block decoration-dotted border-b border-blue-500/30" tabindex="0">
+              [Source ${number}]
+              <span class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-gray-100 text-xs rounded-lg border border-gray-700 whitespace-nowrap shadow-xl z-50 flex items-center gap-2 pointer-events-none">
+                <i class="${iconClass}"></i> ${shortTitle}
+              </span>
+            </span>`;
           }
           return `<span class="text-blue-400 font-bold">[${number}]</span>`;
         });
