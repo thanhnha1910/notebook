@@ -676,19 +676,34 @@
       let contentHtml = text;
 
       if (role === 'assistant' && typeof marked !== 'undefined') {
-        // Cập nhật Regex: (\s*) dùng để bắt mọi khoảng trắng/xuống dòng thừa phía trước citation
-        let formattedText = text.replace(/(\s*)\[(?:Source\s+)?(\d+)\]/gi, (match, space, number) => {
+        // Helper function to render a single citation badge
+        function renderCitationBadge(number) {
           const index = parseInt(number) - 1;
           const source = state.sources[index];
           if (source) {
             const shortTitle = source.title.length > 40 ? source.title.substring(0, 40) + '...' : source.title;
             const iconClass = getIconClass(source.type);
-
-            // Render trên 1 dòng để tránh lỗi xuống dòng. Thêm dấu cách nhẹ ở đầu string.
-            return ` <span title="${source.title}" class="text-blue-400 font-bold cursor-help hover:text-blue-300 relative group inline-block decoration-dotted border-b border-blue-500/30 align-baseline" tabindex="0">[${number}]<span class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-gray-100 text-xs rounded-lg border border-gray-700 w-max max-w-[250px] shadow-xl z-50 flex items-center gap-2 pointer-events-none"><i class="${iconClass}"></i><span class="truncate">${shortTitle}</span></span></span>`;
+            return `<span title="${source.title}" class="text-blue-400 font-bold cursor-help hover:text-blue-300 relative group inline-block decoration-dotted border-b border-blue-500/30 align-baseline" tabindex="0">[${number}]<span class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-gray-100 text-xs rounded-lg border border-gray-700 w-max max-w-[250px] shadow-xl z-50 flex items-center gap-2 pointer-events-none"><i class="${iconClass}"></i><span class="truncate">${shortTitle}</span></span></span>`;
           }
-          return ` <span class="text-blue-400 font-bold">[${number}]</span>`;
+          return `<span class="text-blue-400 font-bold">[${number}]</span>`;
+        }
+
+        // First pass: Handle multiple citations like [1, 2] or [Source 1, Source 2]
+        let formattedText = text.replace(/\[(?:Source\s+)?(\d+(?:\s*,\s*(?:Source\s+)?\d+)+)\]/gi, (match, numbers) => {
+          // Extract all numbers from the match
+          const numList = numbers.match(/\d+/g);
+          if (numList && numList.length > 1) {
+            const badges = numList.map(n => renderCitationBadge(n)).join(' ');
+            return ` ${badges}`;
+          }
+          return match;
         });
+
+        // Second pass: Handle single citations like [1] or [Source 1]
+        formattedText = formattedText.replace(/\[(?:Source\s+)?(\d+)\]/gi, (match, number) => {
+          return ` ${renderCitationBadge(number)}`;
+        });
+
         contentHtml = marked.parse(formattedText);
       }
       else if (role === 'system') {
