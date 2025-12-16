@@ -1014,6 +1014,7 @@
       }
     }
 
+    // SỬA LẠI HÀM sendMessage ĐỂ DÙNG POLLING
     async function sendMessage() {
       const input = document.getElementById('chatInput');
       const msg = input.value.trim();
@@ -1029,6 +1030,7 @@
       const thinkingId = addThinkingBubble();
 
       try {
+        // 1. Gửi request lấy JobID (nhanh < 1s)
         const res = await fetch(ENDPOINTS.start, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1036,21 +1038,63 @@
             action: 'chat',
             message: msg,
             notebookId: state.notebookId,
-            sources: state.sources // Send current sources for accurate citations
+            sources: state.sources
           })
         });
+
         const data = await res.json();
-        removeMessage(thinkingId);
-        if (data.response) addMessage('assistant', data.response);
-        else addMessage('system', '⚠️ No response received.');
+
+        // Nếu không có JobID (lỗi ngay lập tức)
+        if (!data.jobId) {
+          throw new Error(data.error || 'Failed to start chat');
+        }
+
+        // 2. Bắt đầu Polling (Hỏi liên tục xem Chat xong chưa)
+        await pollChatResponse(data.jobId, thinkingId);
+
       } catch (err) {
         removeMessage(thinkingId);
         addMessage('system', `❌ Error: ${err.message}`);
-      } finally {
         state.isProcessing = false;
         document.getElementById('sendBtn').disabled = false;
-        input.focus();
       }
+    }
+
+    // HÀM POLLING RIÊNG CHO CHAT
+    async function pollChatResponse(jobId, thinkingId) {
+      let attempts = 0;
+      const poll = async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+
+          if (data.status === 'completed') {
+            removeMessage(thinkingId);
+            // Lấy kết quả từ staticData đã lưu ở n8n
+            const reply = data.result.response || data.result.summary || "No response text";
+            addMessage('assistant', reply);
+
+            state.isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('chatInput').focus();
+            return; // Xong
+          }
+          else if (data.status === 'error' || data.status === 'not_found') {
+            throw new Error(data.message || 'Chat generation failed');
+          }
+
+          // Nếu chưa xong, hỏi lại sau 2 giây
+          setTimeout(poll, 2000);
+
+        } catch (err) {
+          removeMessage(thinkingId);
+          addMessage('system', `❌ Polling Error: ${err.message}`);
+          state.isProcessing = false;
+          document.getElementById('sendBtn').disabled = false;
+        }
+      };
+      poll();
     }
 
     function addThinkingBubble() {
