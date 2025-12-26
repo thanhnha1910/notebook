@@ -130,6 +130,35 @@
       font-style: italic;
     }
 
+    /* Knowledge Hub Styles */
+    #notesEditor {
+      min-height: 200px;
+      line-height: 1.7;
+    }
+
+    #notesEditor:empty::before {
+      content: 'Click here to start taking notes...';
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    #notesEditor:focus {
+      outline: none;
+    }
+
+    .note-block {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .note-block:hover {
+      background: rgba(59, 130, 246, 0.05);
+      border-radius: 8px;
+      margin: -8px;
+      padding: 8px;
+      color: #94a3b8;
+      font-style: italic;
+    }
+
     /* Animations */
     .thinking-dots span {
       animation: bounce 1.4s infinite ease-in-out both;
@@ -189,9 +218,10 @@
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-73px)]">
+  <main class="max-w-[1600px] mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-73px)]">
 
-    <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden h-full">
+    <!-- SOURCES PANEL (Left) -->
+    <div class="lg:col-span-3 flex flex-col gap-3 overflow-hidden h-full">
 
       <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-shrink-0 shadow-lg">
         <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
@@ -269,8 +299,9 @@
       </div>
     </div>
 
+    <!-- CHAT PANEL (Middle) -->
     <div
-      class="lg:col-span-8 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-2xl">
+      class="lg:col-span-5 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-xl">
 
       <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e] z-10">
         <div class="flex items-center gap-2">
@@ -308,6 +339,42 @@
           </button>
         </div>
         <p class="text-[10px] text-gray-600 text-center mt-2">AI citations are helpful but verify important details.</p>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE HUB PANEL (Right) -->
+    <div
+      class="lg:col-span-4 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-xl">
+
+      <!-- Header -->
+      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e] z-10">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-edit text-emerald-500"></i>
+          <span class="font-semibold text-gray-200">Knowledge Hub</span>
+          <span id="notesWordCount" class="text-[10px] text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">0
+            words</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearNotes()" class="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            title="Clear notes">
+            <i class="fas fa-trash"></i>
+          </button>
+          <button onclick="exportNotesToDocx()"
+            class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white transition-colors flex items-center gap-1.5">
+            <i class="fas fa-file-word"></i> Export
+          </button>
+        </div>
+      </div>
+
+      <!-- Editable Notes Area -->
+      <div id="notesEditor" contenteditable="true"
+        class="flex-1 p-5 overflow-y-auto text-sm text-gray-200 leading-relaxed markdown-content bg-[#0f0f23]"
+        oninput="onNotesChange()" onblur="saveNotes()">
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 border-t border-gray-800 bg-[#1a1a2e]">
+        <p class="text-[10px] text-gray-600 text-center">Edit AI responses here before exporting • Auto-saved</p>
       </div>
     </div>
   </main>
@@ -725,13 +792,26 @@
         contentHtml = `<span class="text-red-400 font-mono text-xs"><i class="fas fa-exclamation-triangle mr-1"></i> ${text}</span>`;
       }
 
+      // Add to Notes button for AI responses
+      const addToNotesBtn = role === 'assistant' ? `
+        <div class="flex items-center gap-2 mt-3 pt-2 border-t border-gray-700/50">
+          <button onclick="addToNotes('${id}')" class="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10">
+            <i class="fas fa-plus"></i> Add to Notes
+          </button>
+          <button onclick="copyToClipboard('${id}')" class="text-[10px] text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-500/10">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+        </div>
+      ` : '';
+
       const html = `
-        <div id="${id}" class="flex gap-4 ${isUser ? 'flex-row-reverse' : ''} chat-message animate-fadeIn">
-          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600 shadow-blue-900/50 shadow-lg' : 'bg-gradient-to-br from-green-500 to-teal-600 shadow-green-900/50 shadow-lg'}">
-            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-xs text-white"></i>
+        <div id="${id}" class="flex gap-3 ${isUser ? 'flex-row-reverse' : ''} chat-message animate-fadeIn">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600 shadow-blue-900/50 shadow-lg' : 'bg-gradient-to-br from-green-500 to-teal-600 shadow-green-900/50 shadow-lg'}">
+            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-[10px] text-white"></i>
           </div>
-          <div class="max-w-[85%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-5 py-3.5 shadow-sm">
-            <div class="text-sm text-gray-200 leading-relaxed ${role === 'assistant' ? 'markdown-content' : ''}">${contentHtml}</div>
+          <div class="max-w-[90%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-4 py-3 shadow-sm">
+            <div class="text-sm text-gray-200 leading-relaxed ${role === 'assistant' ? 'markdown-content msg-content' : ''}">${contentHtml}</div>
+            ${addToNotesBtn}
           </div>
         </div>
       `;
@@ -1165,6 +1245,95 @@
       const map = { 'pdf': 'bg-red-500', 'docx': 'bg-blue-500', 'image': 'bg-green-500', 'youtube': 'bg-red-600', 'website': 'bg-indigo-500', 'text': 'bg-gray-500' };
       return map[type] || 'bg-gray-500';
     }
+
+    // ============================================
+    // KNOWLEDGE HUB FUNCTIONS
+    // ============================================
+    function addToNotes(messageId) {
+      const msgEl = document.querySelector(`#${messageId} .msg-content`);
+      if (!msgEl) return showToast('Could not find message content', 'error');
+
+      const editor = document.getElementById('notesEditor');
+
+      // Add divider if already has content
+      const hasContent = editor.innerText.trim().length > 0;
+      const divider = hasContent ? '<hr class="my-4 border-gray-700">' : '';
+
+      // Clone content and add to notes
+      editor.innerHTML += `${divider}<div class="note-block mb-4">${msgEl.innerHTML}</div>`;
+
+      saveNotes();
+      updateWordCount();
+      showToast('Added to Knowledge Hub ✓', 'success');
+
+      // Scroll to bottom of notes
+      editor.scrollTop = editor.scrollHeight;
+    }
+
+    function copyToClipboard(messageId) {
+      const msgEl = document.querySelector(`#${messageId} .msg-content`);
+      if (!msgEl) return;
+
+      navigator.clipboard.writeText(msgEl.innerText)
+        .then(() => showToast('Copied to clipboard', 'success'))
+        .catch(() => showToast('Failed to copy', 'error'));
+    }
+
+    function onNotesChange() {
+      updateWordCount();
+    }
+
+    function updateWordCount() {
+      const editor = document.getElementById('notesEditor');
+      const text = editor.innerText.trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      document.getElementById('notesWordCount').textContent = `${words} words`;
+    }
+
+    function saveNotes() {
+      const content = document.getElementById('notesEditor').innerHTML;
+      localStorage.setItem(`notes_${state.notebookId}`, content);
+    }
+
+    function loadNotes() {
+      const saved = localStorage.getItem(`notes_${state.notebookId}`);
+      const editor = document.getElementById('notesEditor');
+      if (saved) {
+        editor.innerHTML = saved;
+        updateWordCount();
+      }
+    }
+
+    function clearNotes() {
+      if (!confirm('Clear all notes?')) return;
+      const editor = document.getElementById('notesEditor');
+      editor.innerHTML = '';
+      localStorage.removeItem(`notes_${state.notebookId}`);
+      updateWordCount();
+      showToast('Notes cleared', 'success');
+    }
+
+    function exportNotesToDocx() {
+      const editor = document.getElementById('notesEditor');
+      const text = editor.innerText.trim();
+
+      if (!text) return showToast('No content to export', 'error');
+
+      // Simple text export as fallback
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `knowledge-hub-${state.notebookId}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Notes exported!', 'success');
+    }
+
+    // Load notes on init
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(loadNotes, 100);
+    });
   </script>
 </body>
 
