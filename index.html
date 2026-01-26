@@ -1,0 +1,3386 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotebookLM Crew - Mixed Batch Upload</title>
+
+  <!-- PASSWORD PROTECTION FOR DEMO -->
+  <script>
+    (function () {
+      const DEMO_PASSWORD = 'asiabots123';
+      const AUTH_KEY = 'notebooklm_demo_auth_v2';
+
+      // Check if already authenticated this session
+      if (sessionStorage.getItem(AUTH_KEY) !== 'true') {
+        const password = prompt('🔐 Enter Demo Password to Access:');
+
+        // Block access if: wrong password, empty, null (Cancel pressed), or undefined
+        if (!password || password !== DEMO_PASSWORD) {
+          // Replace entire page with Access Denied
+          document.documentElement.innerHTML = '<html><head><title>Access Denied</title></head><body style="background:#0f0f23;color:#ef4444;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;flex-direction:column;margin:0;"><h1 style="font-size:3rem;margin:0;">⛔ Access Denied</h1><p style="margin-top:1rem;color:#999;">Incorrect password. Please refresh and try again.</p><button onclick="location.reload()" style="margin-top:2rem;padding:0.75rem 2rem;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-size:1rem;">🔄 Try Again</button></body></html>';
+          // Stop all scripts from loading
+          throw new Error('Unauthorized access - Page blocked');
+        }
+
+        sessionStorage.setItem(AUTH_KEY, 'true');
+      }
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: { bg: '#1a1a2e', card: '#16213e', border: '#2d3a4f', hover: '#1f3460' }
+          },
+          animation: {
+            'bounce-slow': 'bounce 3s infinite',
+            'fadeIn': 'fadeIn 0.3s ease-out'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0f0f23;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2d3a4f;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+
+    /* Drag & Drop Zone */
+    .drop-zone {
+      border: 2px dashed #3b82f6;
+      transition: all 0.3s ease;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: #60a5fa;
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+
+    /* Markdown Styles */
+    .markdown-content h1,
+    .markdown-content h2 {
+      font-weight: 600;
+      margin: 1em 0 0.5em;
+      color: #e2e8f0;
+    }
+
+    .markdown-content h1 {
+      font-size: 2.5em;
+      color: #60a5fa;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .markdown-content h2 {
+      font-size: 2em;
+      color: #93c5fd;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .markdown-content ul,
+    .markdown-content ol {
+      margin-left: 1.5em;
+      margin-bottom: 1em;
+    }
+
+    .markdown-content ul li {
+      list-style-type: disc;
+    }
+
+    .markdown-content ol li {
+      list-style-type: decimal;
+    }
+
+    .markdown-content li {
+      margin-bottom: 0.25em;
+    }
+
+    .markdown-content p {
+      margin-bottom: 0.75em;
+      line-height: 1.6;
+    }
+
+    .markdown-content strong {
+      color: #60a5fa;
+      font-weight: 700;
+    }
+
+    /* Citation Sources Section */
+    .sources-section {
+      width: 100%;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .sources-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .sources-header-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, rgba(75, 85, 99, 0.3), transparent);
+    }
+
+    .source-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px;
+      background: rgba(15, 15, 35, 0.6);
+      border: 1px solid rgba(75, 85, 99, 0.2);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .source-card:hover {
+      border-color: rgba(96, 165, 250, 0.4);
+      background: rgba(15, 15, 35, 0.8);
+    }
+
+    .source-number {
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      min-width: 20px;
+    }
+
+    .source-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .source-title {
+      font-size: 13px;
+      color: #e5e7eb;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .source-url {
+      font-size: 11px;
+      color: #60a5fa;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .source-url:hover {
+      text-decoration: underline;
+    }
+
+    .source-view {
+      font-size: 11px;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .source-card:hover .source-view {
+      color: #d1d5db;
+    }
+
+    /* Citation Badge - Fixed Alignment & Inline Protection */
+    .citation-badge {
+      vertical-align: baseline;
+      font-size: 0.75em;
+      transform: translateY(-0.3em);
+      display: inline-flex;
+      line-height: 1;
+      /* Prevent citation from breaking to new line/bullet */
+      white-space: nowrap;
+      position: relative;
+    }
+
+    /* Ensure citations stay with their parent text in lists */
+    li .citation-badge,
+    p .citation-badge,
+    h1 .citation-badge,
+    h2 .citation-badge {
+      display: inline-flex !important;
+    }
+
+    /* Fix for citations that got separated - hide empty or citation-only list items */
+    #notesEditor li:empty,
+    #notesEditor p:empty {
+      display: none;
+    }
+
+    /* Hide list items that only contain a citation badge */
+    #notesEditor li:has(.citation-badge):not(:has(:not(.citation-badge):not(br))) {
+      display: none;
+    }
+
+    /* Ensure proper list styling in editor */
+    #notesEditor ul,
+    #notesEditor ol {
+      margin-left: 1.5rem;
+      padding-left: 0.5rem;
+    }
+
+    #notesEditor li {
+      margin-bottom: 0.25rem;
+    }
+
+    /* Citation Popup Overlay */
+    .citation-popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .citation-popup-overlay.active {
+      opacity: 1;
+    }
+
+    /* Citation Popup Container */
+    .citation-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .citation-popup.active {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .citation-popup-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .citation-popup-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .citation-popup-close {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #9ca3af;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .citation-popup-close:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+    }
+
+    .citation-popup-content {
+      color: #e5e7eb;
+    }
+
+    .citation-popup-source-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .citation-popup-source-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 8px;
+    }
+
+    .citation-popup-source-url {
+      font-size: 12px;
+      color: #60a5fa;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+
+    .citation-popup-quote {
+      background: rgba(15, 15, 35, 0.6);
+      border-left: 3px solid #60a5fa;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #d1d5db;
+      font-style: italic;
+      line-height: 1.6;
+    }
+
+    .markdown-content code {
+      background: rgba(59, 130, 246, 0.15);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #93c5fd;
+    }
+
+    .markdown-content pre {
+      background: #0f0f23;
+      padding: 1em;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1em 0;
+      border: 1px solid #2d3a4f;
+    }
+
+    .markdown-content pre code {
+      background: none;
+      padding: 0;
+      color: #e2e8f0;
+    }
+
+    .markdown-content blockquote {
+      border-left: 4px solid #3b82f6;
+      padding-left: 1em;
+      color: #94a3b8;
+      font-style: italic;
+    }
+
+    /* Knowledge Hub Styles */
+    #notesEditor {
+      min-height: 200px;
+      line-height: 1.7;
+    }
+
+    #notesEditor:empty::before {
+      content: 'Click here to start taking notes...';
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    #notesEditor:focus {
+      outline: none;
+    }
+
+    .note-block {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .note-block:hover {
+      /* Removed intrusive hover effects to keep formatting stable */
+    }
+
+    /* ===== FIXED: Toolbar Active State ===== */
+    .toolbar-btn {
+      transition: all 0.15s ease;
+    }
+
+    .toolbar-btn-active {
+      background-color: #3b82f6 !important;
+      color: white !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+      transform: scale(0.95);
+    }
+
+    .toolbar-btn-active:hover {
+      background-color: #2563eb !important;
+    }
+
+    /* Animations */
+    .thinking-dots span {
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .thinking-dots span:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .thinking-dots span:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+      }
+
+      40% {
+        transform: scale(1);
+      }
+    }
+
+    /* ============================================
+       MIND MAP STYLES - FIXED VERSION
+       ============================================ */
+    .mindmap-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f23 100%);
+    }
+
+    .mindmap-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3000px;
+      height: 2000px;
+      transform-origin: 0 0;
+      transition: transform 0.15s ease-out;
+    }
+
+    #mindMapNodes {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    #mindMapSvg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .mindmap-node {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, #2d2d3a 0%, #1f1f2e 100%);
+      border: 1px solid #3d3d4a;
+      border-radius: 24px;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.4s ease-out, top 0.4s ease-out;
+      user-select: none;
+      opacity: 0;
+      animation: nodeAppear 0.4s ease-out forwards;
+    }
+
+    @keyframes nodeAppear {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateX(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateX(0);
+      }
+    }
+
+    .mindmap-node:hover {
+      background: linear-gradient(135deg, #3d3d4a 0%, #2d2d3a 100%);
+      border-color: #5d5d6a;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mindmap-node.root {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-color: #60a5fa;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 14px 22px;
+      animation-delay: 0s;
+    }
+
+    .mindmap-node.collapsed .expand-btn {
+      transform: rotate(180deg);
+    }
+
+    .expand-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      font-size: 11px;
+      transition: all 0.3s ease;
+    }
+
+    .expand-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    .mindmap-line {
+      stroke: #4a5568;
+      stroke-width: 2;
+      fill: none;
+      pointer-events: none;
+      opacity: 0;
+      animation: lineAppear 0.6s ease-out forwards;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .mindmap-line.line-level-0 {
+      stroke: #60a5fa;
+      stroke-width: 2.5;
+    }
+
+    .mindmap-line.line-level-1 {
+      stroke: #5a6a7a;
+      stroke-width: 2;
+    }
+
+    .mindmap-line.line-level-2 {
+      stroke: #4a5a6a;
+      stroke-width: 1.5;
+    }
+
+    @keyframes lineAppear {
+      from {
+        opacity: 0;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+      }
+
+      to {
+        opacity: 0.9;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .mindmap-zoom-controls {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .mindmap-zoom-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #2d2d3a;
+      border: 1px solid #3d3d4a;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mindmap-zoom-btn:hover {
+      background: #3d3d4a;
+    }
+  </style>
+</head>
+
+<body class="bg-[#0f0f23] min-h-screen text-gray-100 font-sans selection:bg-blue-500/30">
+
+  <header class="border-b border-gray-800 bg-[#1a1a2e] sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="fas fa-book-open text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">NotebookLM Crew</h1>
+          <p class="text-xs text-gray-400 font-mono" id="notebookIdDisplay">Loading ID...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="showNotebookLibrary()"
+          class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs text-white border border-indigo-500 transition-colors flex items-center gap-2">
+          <i class="fas fa-book"></i> My Notebooks
+        </button>
+        <button onclick="createNewNotebook()"
+          class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 border border-gray-700 transition-colors flex items-center gap-2">
+          <i class="fas fa-plus"></i> New Notebook
+        </button>
+        <button onclick="clearAllSources()" class="text-gray-500 hover:text-red-400 text-sm p-2 transition-colors"
+          title="Clear all sources">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-[1600px] mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-73px)]">
+
+    <!-- SOURCES PANEL (Left) -->
+    <div class="lg:col-span-3 flex flex-col gap-3 overflow-hidden h-full">
+
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-shrink-0 shadow-lg">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+          <i class="fas fa-cloud-upload-alt text-blue-500"></i> Add Sources
+        </h2>
+
+        <div id="dropZone" class="drop-zone rounded-xl p-6 text-center cursor-pointer mb-4 bg-[#0f0f23] relative group">
+          <div
+            class="w-12 h-12 mx-auto mb-3 bg-blue-500/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+            <i class="fas fa-layer-group text-xl text-blue-500"></i>
+          </div>
+          <h3 class="text-gray-200 font-medium text-sm">Mixed Source Upload</h3>
+          <p class="text-xs text-gray-500 mt-2 leading-relaxed">
+            Drag & Drop files <span class="text-blue-400 font-medium">(Max 20 MB each)</span>
+            <span class="text-gray-600 mx-1">|</span>
+            Paste YouTube Links
+            <span class="text-gray-600 mx-1">|</span>
+            Add Websites
+          </p>
+          <p class="text-[10px] text-blue-400 mt-2 border border-blue-500/20 rounded-full px-2 py-1 inline-block">
+            ✨ Build your queue below, then process all at once
+          </p>
+          <input type="file" id="fileInput" class="hidden" accept=".pdf,.txt,.md,.docx,.doc,.jpg,.jpeg,.png,.webp"
+            multiple>
+        </div>
+
+        <div id="pendingFilesContainer" class="hidden mb-4 animate-fadeIn">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400">Queue</span>
+            <button onclick="clearPendingItems()" class="text-xs text-gray-500 hover:text-red-400">
+              <i class="fas fa-times"></i> Clear
+            </button>
+          </div>
+          <div id="pendingItemsList" class="flex flex-wrap gap-2 mb-3 max-h-40 overflow-y-auto pr-1"></div>
+          <button onclick="uploadBatchMixed()" id="uploadBatchBtn"
+            class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+            <i class="fas fa-play"></i> Process Queue
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="showUrlInput('website')"
+            class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fas fa-globe text-blue-400"></i>
+            <span class="text-[10px] text-gray-400">Web</span>
+          </button>
+          <button onclick="showUrlInput('youtube')"
+            class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fab fa-youtube text-red-500"></i>
+            <span class="text-[10px] text-gray-400">YouTube</span>
+          </button>
+          <button onclick="showTextInput()"
+            class="source-btn bg-[#0f0f23] hover:bg-gray-700 border border-gray-700 rounded-xl p-2.5 flex flex-col items-center gap-1">
+            <i class="fas fa-paste text-purple-400"></i>
+            <span class="text-[10px] text-gray-400">Paste</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-[#1a1a2e] rounded-2xl p-5 border border-gray-800 flex-1 flex flex-col min-h-0 shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Current Sources
+          </h2>
+          <div class="flex items-center gap-2">
+            <button onclick="generateMindMap()"
+              class="px-2 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white text-[10px] border border-purple-500/30 transition-all flex items-center gap-1"
+              title="Generate Mind Map">
+              <i class="fas fa-project-diagram"></i> Mind map
+            </button>
+            <span id="sourceCount"
+              class="bg-blue-900/50 text-blue-300 text-xs px-2 py-0.5 rounded-full border border-blue-500/20">0</span>
+          </div>
+        </div>
+
+        <div id="sourcesList" class="space-y-3 overflow-y-auto pr-1 flex-1 pl-2 pt-2">
+          <div class="text-center py-10 opacity-40">
+            <i class="fas fa-layer-group text-3xl mb-2"></i>
+            <p class="text-sm">No sources added yet</p>
+          </div>
+        </div>
+
+        <!-- Saved Mind Maps Section -->
+        <div id="savedMindMapsSection" class="mt-3 hidden">
+          <div class="border-t border-gray-800 pt-3">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-2">
+              <i class="fas fa-project-diagram text-purple-500"></i> Saved Mind Maps
+            </h3>
+            <div id="savedMindMapsList" class="space-y-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT PANEL (Middle) -->
+    <div
+      class="lg:col-span-5 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-xl">
+
+      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e] z-10">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-sparkles text-yellow-500"></i>
+          <span class="font-semibold text-gray-200">AI Notebook Assistant</span>
+        </div>
+        <button onclick="clearChat()" class="text-xs text-gray-500 hover:text-white transition-colors">
+          Clear History
+        </button>
+      </div>
+
+      <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth bg-[#0f0f23]">
+        <div class="text-center py-12">
+          <div
+            class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5 shadow-lg">
+            <i class="fas fa-robot text-2xl text-blue-400"></i>
+          </div>
+          <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
+          <p class="text-gray-500 text-sm max-w-xs mx-auto">Add Files, YouTube links, or Websites to the left queue,
+            process them, and then ask me anything.</p>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-gray-800 bg-[#1a1a2e]">
+        <div
+          class="relative flex items-end gap-2 bg-[#0f0f23] border border-gray-700 rounded-xl p-2 focus-within:border-blue-500 transition-colors shadow-inner">
+          <textarea id="chatInput" rows="1" placeholder="Ask about your sources..."
+            class="w-full bg-transparent border-none text-gray-200 p-2 focus:ring-0 resize-none max-h-32 text-sm leading-relaxed scrollbar-hide"
+            oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+
+          <button id="sendBtn" onclick="sendMessage()"
+            class="bg-blue-600 hover:bg-blue-500 text-white rounded-lg p-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-0.5 shadow-lg">
+            <i class="fas fa-paper-plane text-sm"></i>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-600 text-center mt-2">AI citations are helpful but verify important details.</p>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE HUB PANEL (Right) -->
+    <div
+      class="lg:col-span-4 flex flex-col h-full bg-[#1a1a2e] rounded-2xl border border-gray-800 overflow-hidden shadow-xl">
+
+      <!-- Header -->
+      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1a1a2e] z-10">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-edit text-emerald-500"></i>
+          <span class="font-semibold text-gray-200">Content Workspace</span>
+          <span id="notesWordCount" class="text-[10px] text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">0
+            words</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearNotes()" class="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            title="Clear notes">
+            <i class="fas fa-trash"></i>
+          </button>
+          <button onclick="exportNotesToTxt()"
+            class="px-3 py-1.5 rounded-lg bg-gray-600 hover:bg-gray-500 text-xs text-white transition-colors flex items-center gap-1.5">
+            <i class="fas fa-file-alt"></i> TXT
+          </button>
+          <button onclick="exportNotesToDocx()"
+            class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs text-white transition-colors flex items-center gap-1.5">
+            <i class="fas fa-file-word"></i> DOCX
+          </button>
+        </div>
+      </div>
+
+      <!-- ===== FIXED: Formatting Toolbar with toolbar-btn class ===== -->
+      <div class="px-4 py-2 border-b border-gray-800 bg-[#1a1a2e] flex items-center gap-2 flex-wrap">
+        <button id="btnBold" onmousedown="event.preventDefault()" onclick="formatText('bold')"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Bold (Ctrl+B)">
+          <i class="fas fa-bold"></i>
+        </button>
+        <button id="btnItalic" onmousedown="event.preventDefault()" onclick="formatText('italic')"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Italic (Ctrl+I)">
+          <i class="fas fa-italic"></i>
+        </button>
+        <button id="btnUnderline" onmousedown="event.preventDefault()" onclick="formatText('underline')"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Underline (Ctrl+U)">
+          <i class="fas fa-underline"></i>
+        </button>
+        <div class="w-px h-5 bg-gray-700"></div>
+        <button id="btnH1" onmousedown="event.preventDefault()" onclick="formatHeading(1)"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors font-bold"
+          title="Heading 1">
+          H1
+        </button>
+        <button id="btnH2" onmousedown="event.preventDefault()" onclick="formatHeading(2)"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors font-bold"
+          title="Heading 2">
+          H2
+        </button>
+        <div class="w-px h-5 bg-gray-700"></div>
+        <button id="btnUL" onmousedown="event.preventDefault()" onclick="insertList('ul')"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Bullet List">
+          <i class="fas fa-list-ul"></i>
+        </button>
+        <button id="btnOL" onmousedown="event.preventDefault()" onclick="insertList('ol')"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Numbered List">
+          <i class="fas fa-list-ol"></i>
+        </button>
+        <div class="w-px h-5 bg-gray-700"></div>
+        <button onmousedown="event.preventDefault()" onclick="clearFormatting()"
+          class="toolbar-btn px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+          title="Clear Formatting">
+          <i class="fas fa-remove-format"></i>
+        </button>
+      </div>
+
+      <!-- Editable Notes Area -->
+      <div id="notesEditor" contenteditable="true"
+        class="flex-1 p-5 overflow-y-auto text-sm text-gray-200 leading-relaxed markdown-content bg-[#0f0f23]"
+        oninput="onNotesChange()" onblur="saveNotes()">
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 border-t border-gray-800 bg-[#1a1a2e]">
+        <p class="text-[10px] text-gray-600 text-center">Edit AI responses here before exporting • Auto-saved</p>
+      </div>
+    </div>
+  </main>
+
+  <div id="urlModal"
+    class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4 animate-fadeIn">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center">
+        <h3 id="modalTitle" class="font-semibold text-white flex items-center gap-2">Add Links</h3>
+        <button onclick="closeModal('urlModal')" class="text-gray-500 hover:text-white"><i
+            class="fas fa-times"></i></button>
+      </div>
+      <div class="p-5">
+        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 mb-4 flex items-start gap-3">
+          <i class="fas fa-exclamation-circle text-yellow-500 mt-0.5"></i>
+          <div>
+            <p class="text-sm text-yellow-200 font-medium">Each link should be on a separate line.</p>
+            <p class="text-xs text-yellow-200/70 mt-1">Press <kbd
+                class="bg-yellow-900/50 px-1.5 py-0.5 rounded text-yellow-300">Enter</kbd> Enter to move to the next
+              line after each URL.</p>
+          </div>
+        </div>
+        <div class="relative">
+          <textarea id="urlInput" rows="5"
+            class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white resize-none font-mono leading-relaxed"
+            placeholder="Paste links here..."></textarea>
+          <div
+            class="absolute bottom-2 right-2 text-[10px] text-gray-500 bg-[#0f0f23] px-2 rounded border border-gray-800">
+            One per line
+          </div>
+        </div>
+        <div class="flex justify-between items-center mt-4">
+          <span class="text-xs text-gray-500" id="urlHelpText">Supports batch entry</span>
+          <div class="flex gap-2">
+            <button onclick="closeModal('urlModal')"
+              class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
+            <button onclick="addUrlToQueue()"
+              class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-900/30">
+              <i class="fas fa-plus mr-1"></i> Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="textModal"
+    class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4 animate-fadeIn">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-lg border border-gray-700 shadow-2xl">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center">
+        <h3 class="font-semibold text-white flex items-center gap-2"><i class="fas fa-paste text-purple-500"></i> Paste
+          Text</h3>
+        <button onclick="closeModal('textModal')" class="text-gray-500 hover:text-white"><i
+            class="fas fa-times"></i></button>
+      </div>
+      <div class="p-5 space-y-3">
+        <input type="text" id="textTitle" placeholder="Title (e.g. Meeting Notes)"
+          class="w-full bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-blue-500 focus:outline-none text-white">
+        <textarea id="textInput" placeholder="Paste content here..."
+          class="w-full h-48 bg-[#0f0f23] border border-gray-700 rounded-lg px-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-white resize-none font-mono"></textarea>
+        <div class="flex justify-end gap-2">
+          <button onclick="closeModal('textModal')"
+            class="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white">Cancel</button>
+          <button onclick="submitText()"
+            class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium shadow-lg shadow-purple-900/30">Add
+            Source</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingOverlay"
+    class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[60] backdrop-blur-sm flex-col animate-fadeIn">
+    <div class="relative w-16 h-16 mb-4">
+      <div class="absolute inset-0 border-4 border-gray-700 rounded-full"></div>
+      <div class="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+    </div>
+    <h3 id="loadingText" class="text-white font-medium text-lg">Processing...</h3>
+    <p id="loadingDetail" class="text-gray-400 text-sm mt-1">Please wait</p>
+    <div class="w-64 bg-gray-800 rounded-full h-1.5 mt-4 overflow-hidden">
+      <div id="progressBar" class="bg-blue-500 h-full transition-all duration-300 shadow-[0_0_10px_#3b82f6]"
+        style="width: 0%"></div>
+    </div>
+  </div>
+
+  <!-- Notebook Library Modal -->
+  <div id="notebookLibraryModal"
+    class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm p-4 animate-fadeIn">
+    <div class="bg-[#1a1a2e] rounded-2xl w-full max-w-lg border border-gray-700 shadow-2xl max-h-[80vh] flex flex-col">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center flex-shrink-0">
+        <h3 class="font-semibold text-white flex items-center gap-2">
+          <i class="fas fa-book text-indigo-500"></i> My Notebooks
+        </h3>
+        <button onclick="closeModal('notebookLibraryModal')" class="text-gray-500 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="p-5 overflow-y-auto flex-1">
+        <div id="notebookLibraryList" class="space-y-3"></div>
+      </div>
+      <div class="p-4 border-t border-gray-800 flex-shrink-0">
+        <p class="text-xs text-gray-500 text-center">Maximum 10 notebooks saved. Oldest will be removed automatically.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mind Map Modal -->
+  <div id="mindMapModal" class="fixed inset-0 w-screen h-screen bg-black/95 z-[60] flex-col" style="display: none;">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <div>
+        <h2 id="mindMapTitle" class="text-lg font-semibold text-white">Mind Map</h2>
+        <p id="mindMapSubtitle" class="text-xs text-gray-500">Based on 0 sources</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="exportMindMapPNG()" class="p-2 text-gray-400 hover:text-white transition-colors"
+          title="Export PNG">
+          <i class="fas fa-download"></i>
+        </button>
+        <button onclick="toggleMindMapFullscreen()" class="p-2 text-gray-400 hover:text-white transition-colors"
+          title="Fullscreen">
+          <i class="fas fa-expand"></i>
+        </button>
+        <button onclick="closeMindMapModal()" class="p-2 text-gray-400 hover:text-white transition-colors"
+          title="Close">
+          <i class="fas fa-times text-lg"></i>
+        </button>
+      </div>
+    </div>
+    <div id="mindMapContainer" class="mindmap-container flex-1">
+      <div id="mindMapCanvas" class="mindmap-canvas">
+        <svg id="mindMapSvg" width="3000" height="2000"></svg>
+        <div id="mindMapNodes"></div>
+      </div>
+      <div id="mindMapLoading" class="absolute inset-0 flex items-center justify-center bg-black/50 hidden">
+        <div class="text-center">
+          <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4">
+          </div>
+          <p class="text-gray-300">Generating Mind Map...</p>
+        </div>
+      </div>
+    </div>
+    <div class="mindmap-zoom-controls">
+      <button onclick="zoomMindMap(0.1)" class="mindmap-zoom-btn" title="Zoom In"><i class="fas fa-plus"></i></button>
+      <button onclick="zoomMindMap(-0.1)" class="mindmap-zoom-btn" title="Zoom Out"><i
+          class="fas fa-minus"></i></button>
+      <button onclick="resetMindMapZoom()" class="mindmap-zoom-btn" title="Reset"><i
+          class="fas fa-compress-arrows-alt"></i></button>
+    </div>
+    <div class="flex items-center justify-center gap-4 px-6 py-4 border-t border-gray-800">
+      <button
+        class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm flex items-center gap-2 transition-colors">
+        <i class="far fa-thumbs-up"></i> Good content
+      </button>
+      <button
+        class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm flex items-center gap-2 transition-colors">
+        <i class="far fa-thumbs-down"></i> Inappropriate content
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    const API_BASE = 'https://n8n-nick.abapi.dev/webhook';
+    const ENDPOINTS = {
+      start: `${API_BASE}/notebookllm-start`,
+      status: `${API_BASE}/notebookllm-status`,
+    };
+
+    // ============================================
+    // APP STATE
+    // ============================================
+    let state = {
+      notebookId: '',
+      sources: [],
+      isProcessing: false,
+      pendingItems: [],
+      chatMessages: []
+    };
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+      initNotebook();
+      setupDropZone();
+      markNotebookCreation();
+      if (typeof marked !== 'undefined') marked.setOptions({ breaks: true, gfm: true });
+    });
+
+    function initNotebook() {
+      let storedId = localStorage.getItem('notebook_id');
+      if (!storedId) {
+        storedId = 'nb_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        localStorage.setItem('notebook_id', storedId);
+      }
+      state.notebookId = storedId;
+      document.getElementById('notebookIdDisplay').textContent = `ID: ${state.notebookId}`;
+
+      const storedSources = localStorage.getItem(`sources_${state.notebookId}`);
+      if (storedSources) {
+        state.sources = JSON.parse(storedSources);
+        renderSources();
+      }
+
+      const storedChatData = localStorage.getItem(`chatData_${state.notebookId}`);
+      if (storedChatData) {
+        try {
+          state.chatMessages = JSON.parse(storedChatData);
+          renderChatHistory();
+        } catch (e) {
+          console.error('Failed to load chat data:', e);
+        }
+      } else {
+        const oldChat = localStorage.getItem(`chat_${state.notebookId}`);
+        if (oldChat) {
+          document.getElementById('chatMessages').innerHTML = oldChat;
+        }
+      }
+    }
+
+    function createNewNotebook() {
+      if (confirm('Start a new notebook? Current notebook will be saved to history.')) {
+        saveCurrentNotebookToHistory();
+        localStorage.removeItem('notebook_id');
+        localStorage.removeItem('notebooklm_mindmaps');
+        location.reload();
+      }
+    }
+
+    // ============================================
+    // NOTEBOOK HISTORY FUNCTIONS
+    // ============================================
+    const MAX_NOTEBOOKS = 10;
+
+    function getNotebooksList() {
+      const stored = localStorage.getItem('notebooks_list');
+      return stored ? JSON.parse(stored) : [];
+    }
+
+    function saveNotebooksList(list) {
+      localStorage.setItem('notebooks_list', JSON.stringify(list));
+    }
+
+    function saveCurrentNotebookToHistory() {
+      if (!state.notebookId || state.sources.length === 0) return;
+      let notebooks = getNotebooksList();
+      notebooks = notebooks.filter(nb => nb.id !== state.notebookId);
+      notebooks.unshift({
+        id: state.notebookId,
+        createdAt: localStorage.getItem(`created_${state.notebookId}`) || new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        sourcesCount: state.sources.length,
+        sourceTitles: state.sources.slice(0, 3).map(s => s.title),
+        firstSourceType: state.sources[0]?.type || 'text'
+      });
+      if (notebooks.length > MAX_NOTEBOOKS) {
+        const removed = notebooks.splice(MAX_NOTEBOOKS);
+        removed.forEach(nb => {
+          localStorage.removeItem(`sources_${nb.id}`);
+          localStorage.removeItem(`chat_${nb.id}`);
+          localStorage.removeItem(`created_${nb.id}`);
+        });
+      }
+      saveNotebooksList(notebooks);
+    }
+
+    function showNotebookLibrary() {
+      const modal = document.getElementById('notebookLibraryModal');
+      const list = document.getElementById('notebookLibraryList');
+      const notebooks = getNotebooksList();
+
+      if (notebooks.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-10 opacity-60">
+            <i class="fas fa-book-open text-4xl mb-3 text-gray-600"></i>
+            <p class="text-gray-400">No saved notebooks yet</p>
+            <p class="text-xs text-gray-500 mt-2">When you create a new notebook, current one will be saved here</p>
+          </div>
+        `;
+      } else {
+        list.innerHTML = notebooks.map((nb, idx) => {
+          const isActive = nb.id === state.notebookId;
+          const date = new Date(nb.lastModified || nb.createdAt);
+          const dateStr = date.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          const previewTitles = nb.sourceTitles?.join(', ') || 'No sources';
+          const truncatedPreview = previewTitles.length > 50 ? previewTitles.substring(0, 47) + '...' : previewTitles;
+
+          return `
+            <div class="bg-[#0f0f23] rounded-xl border ${isActive ? 'border-indigo-500' : 'border-gray-700'} p-4 hover:border-indigo-400 transition-all group relative">
+              ${isActive ? '<span class="absolute -top-2 -right-2 bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full">Current</span>' : ''}
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="w-6 h-6 rounded-lg ${getIconBg(nb.firstSourceType || 'text')} flex items-center justify-center flex-shrink-0">
+                      <i class="${getIconClass(nb.firstSourceType || 'text')} text-white text-[10px]"></i>
+                    </div>
+                    <span class="text-sm font-medium text-gray-200 truncate">${nb.id}</span>
+                  </div>
+                  <p class="text-xs text-gray-500 truncate" title="${previewTitles}">${truncatedPreview}</p>
+                  <div class="flex items-center gap-3 mt-2 text-[10px] text-gray-500">
+                    <span><i class="fas fa-layer-group mr-1"></i>${nb.sourcesCount} sources</span>
+                    <span><i class="fas fa-calendar mr-1"></i>${dateStr}</span>
+                    <span><i class="fas fa-clock mr-1"></i>${timeStr}</span>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                  ${!isActive ? `
+                    <button onclick="loadNotebook('${nb.id}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors">
+                      <i class="fas fa-folder-open mr-1"></i>Open
+                    </button>
+                  ` : ''}
+                  <button onclick="deleteNotebookFromHistory('${nb.id}', ${idx})" class="text-xs text-gray-500 hover:text-red-400 px-3 py-1.5 rounded-lg transition-colors border border-gray-700 hover:border-red-500">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function loadNotebook(notebookId) {
+      if (notebookId === state.notebookId) {
+        closeModal('notebookLibraryModal');
+        return;
+      }
+      saveCurrentNotebookToHistory();
+      localStorage.setItem('notebook_id', notebookId);
+      location.reload();
+    }
+
+    function deleteNotebookFromHistory(notebookId, index) {
+      if (!confirm('Delete this notebook from history? This cannot be undone.')) return;
+      let notebooks = getNotebooksList();
+      notebooks = notebooks.filter(nb => nb.id !== notebookId);
+      saveNotebooksList(notebooks);
+      localStorage.removeItem(`sources_${notebookId}`);
+      localStorage.removeItem(`chat_${notebookId}`);
+      localStorage.removeItem(`created_${notebookId}`);
+      if (notebookId === state.notebookId) {
+        localStorage.removeItem('notebook_id');
+        location.reload();
+        return;
+      }
+      showNotebookLibrary();
+      showToast('Notebook deleted', 'success');
+    }
+
+    function markNotebookCreation() {
+      if (!localStorage.getItem(`created_${state.notebookId}`)) {
+        localStorage.setItem(`created_${state.notebookId}`, new Date().toISOString());
+      }
+    }
+
+    // ============================================
+    // RENDER FUNCTIONS
+    // ============================================
+    function renderSources() {
+      const list = document.getElementById('sourcesList');
+      document.getElementById('sourceCount').textContent = state.sources.length;
+
+      if (state.sources.length === 0) {
+        list.innerHTML = `<div class="text-center py-10 opacity-40"><i class="fas fa-layer-group text-3xl mb-2"></i><p class="text-sm">No sources yet</p></div>`;
+        return;
+      }
+
+      list.innerHTML = state.sources.map((s, idx) => `
+        <div class="bg-[#0f0f23] hover:bg-gray-800 p-3 rounded-xl border border-gray-800 hover:border-blue-500/30 transition-all group relative animate-fadeIn ml-2">
+          <div class="absolute -left-3 -top-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-[#1a1a2e] shadow-md z-10">
+            ${idx + 1}
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg ${getIconBg(s.type)} flex items-center justify-center flex-shrink-0 shadow-sm">
+              <i class="${getIconClass(s.type)} text-white text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h4 class="text-sm font-medium text-gray-200 truncate pr-6" title="${s.title}">${s.title}</h4>
+              <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">${s.type}</p>
+            </div>
+          </div>
+          <button onclick="deleteSource(${idx})" class="absolute top-2 right-2 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            <i class="fas fa-times-circle"></i>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // ============================================
+    // CITATION HELPER FUNCTIONS
+    // ============================================
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ============================================
+    // CITATION POPUP FUNCTIONS
+    // ============================================
+    function showCitationPopup(sourceIndex, quote = null) {
+      const source = state.sources[sourceIndex];
+      if (!source) return;
+
+      const iconClass = getIconClass(source.type);
+      const hasUrl = source.url || (source.type === 'youtube' || source.type === 'website');
+      const displayUrl = source.url || source.title;
+
+      const quoteHTML = quote ? `
+        <div class="citation-popup-quote">
+          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin-bottom: 6px;">Quoted Text:</div>
+          "${escapeHtml(quote)}"
+        </div>
+      ` : '';
+
+      const popupHTML = `
+        <div class="citation-popup-overlay" id="citationPopupOverlay" onclick="closeCitationPopup()"></div>
+        <div class="citation-popup" id="citationPopup">
+          <div class="citation-popup-header">
+            <div class="citation-popup-title">
+              <i class="fas fa-quote-left"></i>
+              Source [${sourceIndex + 1}]
+            </div>
+            <button class="citation-popup-close" onclick="closeCitationPopup()">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="citation-popup-content">
+            <div class="citation-popup-source-icon">
+              <i class="${iconClass} text-blue-400"></i>
+            </div>
+            <div class="citation-popup-source-title">${escapeHtml(source.title)}</div>
+            ${hasUrl ? `<div class="citation-popup-source-url">${escapeHtml(displayUrl)}</div>` : ''}
+            ${quoteHTML}
+          </div>
+        </div>
+      `;
+
+      // Remove existing popup if any
+      closeCitationPopup();
+
+      // Insert new popup
+      document.body.insertAdjacentHTML('beforeend', popupHTML);
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        document.getElementById('citationPopupOverlay')?.classList.add('active');
+        document.getElementById('citationPopup')?.classList.add('active');
+      });
+    }
+
+    function closeCitationPopup() {
+      const overlay = document.getElementById('citationPopupOverlay');
+      const popup = document.getElementById('citationPopup');
+
+      if (overlay) {
+        overlay.classList.remove('active');
+        popup?.classList.remove('active');
+        setTimeout(() => {
+          overlay.remove();
+          popup?.remove();
+        }, 250);
+      }
+    }
+
+    // Close popup on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeCitationPopup();
+    });
+
+    function renderMessageHTML(id, role, text, isUser) {
+      let contentHtml = text;
+      let citedSources = new Set(); // Track which sources are cited
+
+      if (role === 'assistant' && typeof marked !== 'undefined') {
+        function renderCitationBadge(number, quote = null) {
+          const index = parseInt(number) - 1;
+          citedSources.add(index); // Track this citation
+
+          const source = state.sources[index];
+          if (source) {
+            const safeQuote = quote ? quote.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ') : null;
+            const onclickHandler = safeQuote
+              ? `showCitationPopup(${index}, '${safeQuote}')`
+              : `showCitationPopup(${index})`;
+
+            return `<span onclick="${onclickHandler}" class="citation-badge inline-flex items-center justify-center w-5 h-5 ml-1 rounded-full bg-blue-500/10 border border-blue-500/20 font-bold text-blue-400 cursor-pointer hover:bg-blue-500 hover:text-white transition-all select-none active:scale-95" role="button" tabindex="0">
+              <span class="leading-none">${number}</span>
+            </span>`;
+          }
+          return `<span class="text-blue-400 font-bold text-xs ml-0.5">[${number}]</span>`;
+        }
+        let formattedText = text.replace(/(?:\r?\n|\r)?\s*<<\s*(\d+)\s*\|\|\s*([\s\S]*?)\s*>>/g, (match, number, quote) => {
+          return renderCitationBadge(number, quote.trim());
+        });
+        formattedText = formattedText.replace(/\[(?:Source\s+)?(\d+)\]/gi, (match, number) => {
+          return renderCitationBadge(number, null);
+        });
+        contentHtml = marked.parse(formattedText);
+      }
+      else if (role === 'system') {
+        contentHtml = `<span class="text-red-400 font-mono text-xs"><i class="fas fa-exclamation-triangle mr-1"></i> ${text}</span>`;
+      }
+
+      const addToNotesBtn = role === 'assistant' ? `
+        <div class="flex items-center gap-2 mt-3 pt-2 border-t border-gray-700/50">
+          <button onclick="addToNotes('${id}')" class="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10">
+            <i class="fas fa-plus"></i> Add to Notes
+          </button>
+          <button onclick="copyToClipboard('${id}')" class="text-[10px] text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-500/10">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+        </div>
+      ` : '';
+
+      // Sources section removed - now using click-based popups
+      const sourcesSection = '';
+
+      return `
+        <div id="${id}" class="flex gap-3 ${isUser ? 'flex-row-reverse' : ''} chat-message animate-fadeIn">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isUser ? 'bg-blue-600 shadow-blue-900/50 shadow-lg' : 'bg-gradient-to-br from-green-500 to-teal-600 shadow-green-900/50 shadow-lg'}">
+            <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-[10px] text-white"></i>
+          </div>
+          <div class="max-w-[90%] ${isUser ? 'bg-blue-600/20 border border-blue-500/30' : 'bg-gray-800/50 border border-gray-700'} rounded-2xl px-4 py-3 shadow-sm">
+            <div class="text-sm text-gray-200 leading-relaxed ${role === 'assistant' ? 'markdown-content msg-content' : ''}">${contentHtml}</div>
+            ${sourcesSection}
+            ${addToNotesBtn}
+          </div>
+        </div>
+      `;
+    }
+
+    function addMessage(role, text) {
+      const container = document.getElementById('chatMessages');
+      const welcome = container.querySelector('.text-center.py-12');
+      if (welcome) welcome.remove();
+
+      const isUser = role === 'user';
+      const id = 'msg-' + Date.now();
+
+      const html = renderMessageHTML(id, role, text, isUser);
+      container.insertAdjacentHTML('beforeend', html);
+      container.scrollTop = container.scrollHeight;
+
+      state.chatMessages.push({
+        id: id,
+        role: role,
+        text: text,
+        timestamp: Date.now()
+      });
+      saveChatMessages();
+    }
+
+    function saveChatMessages() {
+      localStorage.setItem(`chatData_${state.notebookId}`, JSON.stringify(state.chatMessages));
+    }
+
+    function renderChatHistory() {
+      const container = document.getElementById('chatMessages');
+      container.innerHTML = '';
+      state.chatMessages.forEach((msg, index) => {
+        const isUser = msg.role === 'user';
+        const msgId = msg.id || `msg-history-${index}`;
+        const html = renderMessageHTML(msgId, msg.role, msg.text, isUser);
+        container.insertAdjacentHTML('beforeend', html);
+      });
+    }
+
+    function clearChat() {
+      if (!confirm('Clear all chat messages?')) return;
+      document.getElementById('chatMessages').innerHTML = `
+        <div class="text-center py-12">ß
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full flex items-center justify-center border border-white/5 shadow-lg">
+            <i class="fas fa-robot text-2xl text-blue-400"></i>
+          </div>
+          <h3 class="text-lg font-medium text-white mb-2">How can I help you?</h3>
+          <p class="text-gray-500 text-sm max-w-xs mx-auto">Add Files, YouTube links, or Websites to the left queue, process them, and then ask me anything.</p>
+        </div>
+      `;
+      state.chatMessages = [];
+      saveChatMessages();
+    }
+
+    // ============================================
+    // BATCH MIXED LOGIC
+    // ============================================
+    function setupDropZone() {
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+
+      dropZone.onclick = () => fileInput.click();
+      dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over', 'bg-gray-800'); };
+      dropZone.ondragleave = () => { dropZone.classList.remove('drag-over', 'bg-gray-800'); };
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over', 'bg-gray-800');
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) addFilesToQueue(files);
+      };
+      fileInput.onchange = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) addFilesToQueue(files);
+        fileInput.value = '';
+      };
+    }
+
+    function addFilesToQueue(files) {
+      const validFiles = files.filter(file => {
+        if (file.size > 20 * 1024 * 1024) {
+          const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+          showToast(`${file.name}: ${fileSizeMB} MB exceeds 20 MB limit`, 'error');
+          return false;
+        }
+        return true;
+      });
+      let addedCount = 0;
+      validFiles.forEach(file => {
+        // Check for duplicate files by name
+        const isDuplicate = state.pendingItems.some(item => item.name === file.name);
+        if (!isDuplicate) {
+          state.pendingItems.push({ type: 'file', data: file, name: file.name });
+          addedCount++;
+        }
+      });
+      renderPendingItems();
+      if (addedCount > 0) showToast(`Added ${addedCount} file(s) to queue`, 'success');
+      if (validFiles.length > addedCount) showToast(`${validFiles.length - addedCount} duplicate file(s) skipped`, 'info');
+    }
+
+    function showUrlInput(type) {
+      const modal = document.getElementById('urlModal');
+      const input = document.getElementById('urlInput');
+      const title = document.getElementById('modalTitle');
+      const help = document.getElementById('urlHelpText');
+
+      input.value = '';
+      input.dataset.type = type;
+
+      if (type === 'youtube') {
+        title.innerHTML = '<i class="fab fa-youtube text-red-500"></i> Add YouTube Videos';
+        input.placeholder = 'https://youtube.com/watch?v=video1\nhttps://youtu.be/video2';
+        help.innerHTML = 'Paste multiple YouTube links (one per line). <span class="text-orange-400 ml-1"><i class="fas fa-closed-captioning"></i> Only videos with CC captions are supported</span>';
+      } else {
+        title.innerHTML = '<i class="fas fa-globe text-blue-500"></i> Add Websites';
+        input.placeholder = 'https://site1.com/article\nhttps://site2.com/blog';
+        help.textContent = 'Paste multiple Website URLs (one per line)';
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => input.focus(), 100);
+    }
+
+    function addUrlToQueue() {
+      const input = document.getElementById('urlInput');
+      const rawText = input.value.trim();
+      const type = input.dataset.type;
+      if (!rawText) return;
+
+      const urls = rawText.split(/\n+/).map(u => u.trim()).filter(u => u.length > 0);
+      if (urls.length === 0) return;
+
+      let addedCount = 0;
+      urls.forEach(url => {
+        const isDuplicate = state.pendingItems.some(item => item.data === url);
+        if (!isDuplicate) {
+          state.pendingItems.push({ type: 'url', subType: type, data: url, name: url });
+          addedCount++;
+        }
+      });
+
+      closeModal('urlModal');
+      renderPendingItems();
+      if (addedCount > 0) showToast(`Added ${addedCount} links to queue`, 'success');
+    }
+
+    function renderPendingItems() {
+      const container = document.getElementById('pendingFilesContainer');
+      const list = document.getElementById('pendingItemsList');
+      const btn = document.getElementById('uploadBatchBtn');
+
+      if (state.pendingItems.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      btn.innerHTML = `<i class="fas fa-play"></i> Process ${state.pendingItems.length} Sources`;
+
+      list.innerHTML = state.pendingItems.map((item, idx) => {
+        let icon = 'fas fa-file text-gray-400';
+        if (item.type === 'file') icon = getFileIcon(item.name);
+        else if (item.subType === 'youtube') icon = 'fab fa-youtube text-red-500';
+        else if (item.subType === 'website') icon = 'fas fa-globe text-blue-400';
+
+        const displayName = item.name.length > 35 ? item.name.substring(0, 32) + '...' : item.name;
+
+        return `
+        <div class="file-chip flex items-center gap-2 bg-[#0f0f23] border border-gray-700 rounded-lg px-3 py-1.5 animate-fadeIn group hover:border-blue-500 transition-colors w-full justify-between">
+          <div class="flex items-center gap-2 overflow-hidden">
+            <i class="${icon} text-xs flex-shrink-0"></i>
+            <span class="text-xs text-gray-300 truncate" title="${item.name}">${displayName}</span>
+          </div>
+          <button onclick="removePendingItem(${idx})" class="text-gray-500 hover:text-red-400 ml-2">
+            <i class="fas fa-times text-[10px]"></i>
+          </button>
+        </div>
+      `}).join('');
+    }
+
+    function removePendingItem(index) {
+      state.pendingItems.splice(index, 1);
+      renderPendingItems();
+    }
+
+    function clearPendingItems() {
+      state.pendingItems = [];
+      renderPendingItems();
+    }
+
+    async function uploadBatchMixed() {
+      if (state.pendingItems.length === 0) return;
+      const totalItems = state.pendingItems.length;
+      showLoading(`Processing ${totalItems} source${totalItems > 1 ? 's' : ''}`, "Please wait...");
+
+      try {
+        const formData = new FormData();
+        const urls = [];
+        state.pendingItems.forEach(item => {
+          if (item.type === 'file') {
+            formData.append('files', item.data);
+          } else if (item.type === 'url') {
+            urls.push(item.data);
+          }
+        });
+        if (urls.length > 0) {
+          formData.append('urls', JSON.stringify(urls));
+        }
+        formData.append('action', 'upload_batch');
+        formData.append('notebookId', state.notebookId);
+        formData.append('fileCount', totalItems.toString());
+
+        const res = await fetch(ENDPOINTS.start, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.jobId) throw new Error(data.error || 'Upload failed');
+
+        state.pendingItems = [];
+        renderPendingItems();
+        await pollBatchJob(data.jobId, totalItems);
+
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function pollBatchJob(jobId, fileCount) {
+      let attempts = 0;
+      const maxAttempts = 180;
+      let hasCompleted = false; // Flag to prevent duplicate processing
+      const pBar = document.getElementById('progressBar');
+      const detail = document.getElementById('loadingDetail');
+
+      const interval = setInterval(async () => {
+        if (hasCompleted) return; // Skip if already processed
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+
+          const progress = Math.min((attempts / 60) * 100, 95);
+          pBar.style.width = `${progress}%`;
+
+          if (data.status === 'completed') {
+            if (hasCompleted) return; // Double-check to prevent race condition
+            hasCompleted = true;
+            clearInterval(interval);
+            pBar.style.width = '100%';
+
+            const result = data.result || {};
+            if (result.sources && Array.isArray(result.sources)) {
+              result.sources.forEach(src => {
+                // Check for duplicate source by ID first, then by title + type, or by URL
+                const isDuplicate = state.sources.some(existing =>
+                  (src.id && existing.id === src.id) ||
+                  (existing.title === src.title && existing.type === src.type) ||
+                  (src.url && existing.url && existing.url === src.url)
+                );
+                if (!isDuplicate) {
+                  state.sources.push({
+                    id: src.id || jobId,
+                    title: src.title,
+                    type: src.type,
+                    url: src.url || null,
+                    summary: src.summary,
+                    addedAt: new Date().toISOString()
+                  });
+                }
+              });
+            }
+
+            saveState();
+            renderSources();
+            hideLoading();
+            showToast(`${fileCount} sources processed!`, 'success');
+
+            const summary = result.combinedSummary || result.summary || 'Content processed successfully.';
+            const titles = result.sources ? result.sources.map(s => s.title).join(', ') : `${fileCount} items`;
+            addMessage('assistant', `✅ **Added ${fileCount} sources:** ${titles}\n\n${summary}`);
+
+          } else if (data.status === 'error') {
+            hasCompleted = true;
+            clearInterval(interval);
+            throw new Error(data.message || 'Processing failed');
+          } else {
+            detail.textContent = data.progress || `Processing... (${attempts}s)`;
+          }
+
+        } catch (err) {
+          if (attempts >= maxAttempts) {
+            hasCompleted = true;
+            clearInterval(interval);
+            hideLoading();
+            showToast('Timeout - Check server logs', 'error');
+          }
+        }
+      }, 2000);
+    }
+
+    // ============================================
+    // UTILS & UI
+    // ============================================
+    function showTextInput() {
+      document.getElementById('textInput').value = '';
+      document.getElementById('textTitle').value = '';
+      const modal = document.getElementById('textModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    async function submitText() {
+      const text = document.getElementById('textInput').value.trim();
+      const title = document.getElementById('textTitle').value.trim() || 'Pasted Note';
+      if (!text) return;
+      closeModal('textModal');
+
+      showLoading('Processing Text', title);
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'paste_text', text, title, notebookId: state.notebookId })
+        });
+        const data = await res.json();
+        if (!data.jobId) throw new Error(data.error);
+
+        let attempts = 0;
+        let hasCompleted = false; // Flag to prevent duplicate
+        const interval = setInterval(async () => {
+          if (hasCompleted) return;
+          attempts++;
+          try {
+            const statusRes = await fetch(`${ENDPOINTS.status}?jobId=${data.jobId}`);
+            const statusData = await statusRes.json();
+            if (statusData.status === 'completed') {
+              if (hasCompleted) return;
+              hasCompleted = true;
+              clearInterval(interval);
+              hideLoading();
+
+              // Check for duplicate text source by ID or title
+              const isDuplicate = state.sources.some(existing =>
+                (existing.id === data.jobId) ||
+                (existing.title === statusData.result.title && existing.type === 'text')
+              );
+
+              if (!isDuplicate) {
+                state.sources.push({
+                  id: data.jobId,
+                  title: statusData.result.title,
+                  type: 'text',
+                  summary: statusData.result.summary,
+                  addedAt: new Date().toISOString()
+                });
+              }
+              saveState();
+              renderSources();
+              addMessage('assistant', `✅ **Added Note:** ${title}\n\n${statusData.result.summary}`);
+            }
+          } catch (e) {
+            if (attempts > 60) {
+              hasCompleted = true;
+              clearInterval(interval);
+              hideLoading();
+              showToast('Timeout processing text', 'error');
+            }
+          }
+        }, 2000);
+
+      } catch (err) {
+        hideLoading();
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg || state.isProcessing) return;
+      if (state.sources.length === 0) return showToast('Please add a source first', 'error');
+
+      state.isProcessing = true;
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('sendBtn').disabled = true;
+
+      addMessage('user', msg);
+      const thinkingId = addThinkingBubble();
+
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'chat',
+            message: msg,
+            notebookId: state.notebookId,
+            sources: state.sources
+          })
+        });
+
+        const data = await res.json();
+        if (!data.jobId) {
+          throw new Error(data.error || 'Failed to start chat');
+        }
+
+        await pollChatResponse(data.jobId, thinkingId);
+
+      } catch (err) {
+        removeMessage(thinkingId);
+        addMessage('system', `❌ Error: ${err.message}`);
+        state.isProcessing = false;
+        document.getElementById('sendBtn').disabled = false;
+      }
+    }
+
+    async function pollChatResponse(jobId, thinkingId) {
+      let attempts = 0;
+      const poll = async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+
+          if (data.status === 'completed') {
+            removeMessage(thinkingId);
+            const reply = data.result.response || data.result.summary || "No response text";
+            addMessage('assistant', reply);
+            state.isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('chatInput').focus();
+            return;
+          }
+          else if (data.status === 'error' || data.status === 'not_found') {
+            throw new Error(data.message || 'Chat generation failed');
+          }
+          setTimeout(poll, 2000);
+        } catch (err) {
+          removeMessage(thinkingId);
+          addMessage('system', `❌ Polling Error: ${err.message}`);
+          state.isProcessing = false;
+          document.getElementById('sendBtn').disabled = false;
+        }
+      };
+      poll();
+    }
+
+    function addThinkingBubble() {
+      const container = document.getElementById('chatMessages');
+      const id = 'thinking-' + Date.now();
+      container.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="flex gap-4 chat-message">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center flex-shrink-0 animate-pulse"><i class="fas fa-robot text-xs text-white"></i></div>
+          <div class="bg-gray-800/50 border border-gray-700 rounded-2xl px-5 py-4"><div class="thinking-dots flex gap-1"><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span><span class="w-1.5 h-1.5 bg-gray-400 rounded-full"></span></div></div>
+        </div>`);
+      container.scrollTop = container.scrollHeight;
+      return id;
+    }
+
+    function removeMessage(id) { document.getElementById(id)?.remove(); }
+    function clearAllSources() { if (confirm('Remove all sources?')) { state.sources = []; saveState(); renderSources(); showToast('All sources cleared', 'success'); } }
+    function saveState() { localStorage.setItem(`sources_${state.notebookId}`, JSON.stringify(state.sources)); }
+    function deleteSource(index) { if (confirm('Remove this source?')) { state.sources.splice(index, 1); saveState(); renderSources(); } }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex'); }
+
+    function showLoading(text, detail) {
+      document.getElementById('loadingText').textContent = text;
+      document.getElementById('loadingDetail').textContent = detail;
+      document.getElementById('progressBar').style.width = '0%';
+      document.getElementById('loadingOverlay').classList.remove('hidden');
+      document.getElementById('loadingOverlay').classList.add('flex');
+    }
+    function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); document.getElementById('loadingOverlay').classList.remove('flex'); }
+
+    function showToast(msg, type) {
+      const toast = document.createElement('div');
+      const bgColor = type === 'error' ? 'bg-red-500' : type === 'info' ? 'bg-blue-500' : 'bg-green-600';
+      const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'info' ? 'fa-info-circle' : 'fa-check-circle';
+      toast.className = `fixed bottom-5 right-5 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg transform transition-all translate-y-10 opacity-0 z-[70] flex items-center gap-2 ${bgColor}`;
+      toast.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+      setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
+    function getFileType(name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['pdf'].includes(ext)) return 'pdf';
+      if (['doc', 'docx'].includes(ext)) return 'docx';
+      if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return 'image';
+      return 'text';
+    }
+    function getFileIcon(name) { const type = getFileType(name); return getIconClass(type); }
+    function getIconClass(type) {
+      const map = { 'pdf': 'fas fa-file-pdf', 'docx': 'fas fa-file-word', 'image': 'fas fa-file-image', 'youtube': 'fab fa-youtube', 'website': 'fas fa-globe', 'text': 'fas fa-file-alt' };
+      return map[type] || 'fas fa-file';
+    }
+    function getIconBg(type) {
+      const map = { 'pdf': 'bg-red-500', 'docx': 'bg-blue-500', 'image': 'bg-green-500', 'youtube': 'bg-red-600', 'website': 'bg-indigo-500', 'text': 'bg-gray-500' };
+      return map[type] || 'bg-gray-500';
+    }
+
+    // ============================================
+    // ============================================
+    // ===== FINAL STABLE TOOLBAR (FIXED UNDO/REDO) =====
+    // ============================================
+
+    // ============================================
+    // CUSTOM UNDO/REDO STACK
+    // Giải quyết vấn đề native undo bị hỏng với formatBlock
+    // ============================================
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_UNDO_STATES = 50;
+    let isUndoRedo = false;  // Flag để tránh lưu state khi đang undo/redo
+
+    function getEditor() {
+      return document.getElementById('notesEditor');
+    }
+
+    /**
+     * Lưu state hiện tại vào undo stack
+     */
+    function saveUndoState() {
+      if (isUndoRedo) return;
+
+      const editor = getEditor();
+      if (!editor) return;
+
+      const currentState = {
+        html: editor.innerHTML,
+        timestamp: Date.now()
+      };
+
+      // Không lưu nếu state giống với state cuối
+      if (undoStack.length > 0 && undoStack[undoStack.length - 1].html === currentState.html) {
+        return;
+      }
+
+      undoStack.push(currentState);
+
+      // Giới hạn số lượng states
+      if (undoStack.length > MAX_UNDO_STATES) {
+        undoStack.shift();
+      }
+
+      // Clear redo stack khi có action mới
+      redoStack.length = 0;
+    }
+
+    /**
+     * Custom Undo
+     */
+    function customUndo() {
+      const editor = getEditor();
+      if (!editor || undoStack.length === 0) return false;
+
+      isUndoRedo = true;
+
+      // Lưu state hiện tại vào redo
+      redoStack.push({
+        html: editor.innerHTML,
+        timestamp: Date.now()
+      });
+
+      // Khôi phục state trước
+      const prevState = undoStack.pop();
+      editor.innerHTML = prevState.html;
+
+      // Đặt cursor về cuối
+      placeCaretAtEnd(editor);
+
+      updateToolbarState();
+      saveNotes();
+
+      isUndoRedo = false;
+      return true;
+    }
+
+    /**
+     * Custom Redo
+     */
+    function customRedo() {
+      const editor = getEditor();
+      if (!editor || redoStack.length === 0) return false;
+
+      isUndoRedo = true;
+
+      // Lưu state hiện tại vào undo
+      undoStack.push({
+        html: editor.innerHTML,
+        timestamp: Date.now()
+      });
+
+      // Khôi phục state redo
+      const nextState = redoStack.pop();
+      editor.innerHTML = nextState.html;
+
+      // Đặt cursor về cuối
+      placeCaretAtEnd(editor);
+
+      updateToolbarState();
+      saveNotes();
+
+      isUndoRedo = false;
+      return true;
+    }
+
+    /**
+     * Đặt cursor về cuối editor
+     */
+    function placeCaretAtEnd(el) {
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    /**
+     * Hàm quan trọng: Tìm thẻ cha của con trỏ hiện tại
+     * Giúp nút bấm sáng đèn chính xác 100%
+     */
+    function getActiveStyle(tag) {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return false;
+
+      let node = selection.anchorNode;
+      const editor = getEditor();
+
+      // Duyệt ngược từ con trỏ lên trên để tìm thẻ
+      while (node && node !== editor && node !== document.body) {
+        if (node.nodeType === 1 && node.tagName.toLowerCase() === tag.toLowerCase()) {
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    }
+
+    /**
+     * Định dạng văn bản (B, I, U)
+     */
+    function formatText(command) {
+      const editor = getEditor();
+      editor.focus();
+      saveUndoState(); // Lưu state trước khi format
+      document.execCommand(command, false, null);
+      updateToolbarState();
+      saveNotes();
+    }
+
+    /**
+     * Xử lý Heading (H1, H2)
+     * TOGGLE: Click H1 -> áp dụng, Click H1 lần nữa -> tắt về P
+     */
+    function formatHeading(level) {
+      const editor = getEditor();
+      editor.focus();
+
+      saveUndoState(); // LƯU STATE TRƯỚC KHI FORMAT
+
+      const targetTag = `h${level}`;
+
+      // Kiểm tra xem có đang trong heading này không (check từ nhiều nguồn)
+      const isActive = getActiveStyle(targetTag) || checkSelectionHasTag(targetTag);
+
+      if (isActive) {
+        // TOGGLE OFF: Đang là H1/H2 -> Chuyển về P
+        document.execCommand('formatBlock', false, 'p');
+      } else {
+        // TOGGLE ON: Chưa là H1/H2 -> Bật lên
+        document.execCommand('formatBlock', false, targetTag);
+      }
+
+      // Cleanup citations bị tách - chạy ngay và sau delay
+      cleanupCitations();
+      setTimeout(() => {
+        cleanupCitations();
+        updateToolbarState();
+        saveNotes();
+      }, 50);
+
+      updateToolbarState();
+      saveNotes();
+    }
+
+    /**
+     * Kiểm tra selection có chứa tag cụ thể không
+     * Dùng cho trường hợp Select All
+     */
+    function checkSelectionHasTag(tag) {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return false;
+
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const editor = getEditor();
+
+      // Nếu container là element, check trực tiếp
+      if (container.nodeType === 1) {
+        if (container.tagName.toLowerCase() === tag.toLowerCase()) return true;
+        // Check children
+        const tagElements = container.querySelectorAll(tag);
+        if (tagElements.length > 0) return true;
+      }
+
+      // Check trong toàn bộ editor nếu đang select all
+      const editorText = editor.innerText.trim();
+      const selectionText = selection.toString().trim();
+
+      // Nếu selection ~ toàn bộ editor, check tag trong editor
+      if (selectionText.length >= editorText.length * 0.9) {
+        const tagElements = editor.querySelectorAll(tag);
+        if (tagElements.length > 0) return true;
+      }
+
+      return false;
+    }
+
+    /**
+     * Tạo danh sách (UL, OL)
+     * TOGGLE: Click UL/OL -> áp dụng, Click lần nữa -> tắt về P
+     */
+    function insertList(type) {
+      const editor = getEditor();
+      editor.focus();
+
+      saveUndoState(); // LƯU STATE TRƯỚC KHI FORMAT
+
+      const command = type === 'ul' ? 'insertUnorderedList' : 'insertOrderedList';
+      const tagName = type === 'ul' ? 'ul' : 'ol';
+
+      // Kiểm tra toggle - nếu đang có list, execCommand sẽ tự tắt
+      // Nhưng cần đảm bảo check được khi select all
+      const isActive = getActiveStyle(tagName) ||
+        getActiveStyle('li') ||
+        checkSelectionHasTag(tagName);
+
+      // execCommand toggle list tự động (bật/tắt)
+      document.execCommand(command, false, null);
+
+      // SỬA: Cleanup citations bị tách - chạy ngay và sau delay
+      cleanupCitations();
+      setTimeout(() => {
+        cleanupCitations();
+        updateToolbarState();
+        saveNotes();
+      }, 50);
+
+      updateToolbarState();
+      saveNotes();
+    }
+
+    /**
+     * Cleanup: Merge/Remove citation badges bị tách thành bullet/line riêng
+     * Xử lý vấn đề khi format list làm citation bị tách ra
+     * ENHANCED: Xử lý nhiều trường hợp hơn
+     */
+    function cleanupCitations() {
+      const editor = getEditor();
+      if (!editor) return;
+
+      // PASS 1: Xử lý list items chỉ chứa citation
+      const listItems = Array.from(editor.querySelectorAll('li'));
+
+      for (let i = 0; i < listItems.length; i++) {
+        const li = listItems[i];
+        const citations = li.querySelectorAll('.citation-badge');
+
+        if (citations.length === 0) continue;
+
+        // Kiểm tra nếu li chỉ chứa citation (không có text thực)
+        const textContent = li.textContent.trim();
+        const citationText = Array.from(citations).map(c => c.textContent.trim()).join('');
+        const remainingText = textContent.replace(new RegExp(`[${citationText}]`, 'g'), '').trim();
+
+        // Nếu chỉ còn citation (hoặc dấu chấm, khoảng trắng)
+        if (remainingText.length <= 2) {
+          // Tìm li hoặc p trước đó để merge
+          let prevElement = li.previousElementSibling;
+
+          if (prevElement && (prevElement.tagName === 'LI' || prevElement.tagName === 'P')) {
+            // Move tất cả citations sang cuối element trước
+            citations.forEach(citation => {
+              prevElement.appendChild(document.createTextNode(' '));
+              prevElement.appendChild(citation.cloneNode(true));
+            });
+          }
+          // Xóa li chỉ chứa citation
+          li.remove();
+        }
+      }
+
+      // PASS 2: Xử lý paragraphs/divs chỉ chứa citation
+      const blocks = Array.from(editor.querySelectorAll('p, div'));
+
+      for (let block of blocks) {
+        const citations = block.querySelectorAll('.citation-badge');
+        if (citations.length === 0) continue;
+
+        const textContent = block.textContent.trim();
+        const citationText = Array.from(citations).map(c => c.textContent.trim()).join('');
+        const remainingText = textContent.replace(new RegExp(`[${citationText}]`, 'g'), '').trim();
+
+        // Nếu block chỉ chứa citation
+        if (remainingText.length <= 2) {
+          let prevElement = block.previousElementSibling;
+
+          if (prevElement && ['P', 'LI', 'DIV', 'H1', 'H2', 'H3'].includes(prevElement.tagName)) {
+            // Move citations sang element trước
+            citations.forEach(citation => {
+              prevElement.appendChild(document.createTextNode(' '));
+              prevElement.appendChild(citation.cloneNode(true));
+            });
+          }
+          // Xóa block chỉ chứa citation
+          block.remove();
+        }
+      }
+
+      // PASS 3: Cleanup các elements rỗng
+      editor.querySelectorAll('li:empty, p:empty').forEach(el => el.remove());
+      editor.querySelectorAll('ul:empty, ol:empty').forEach(list => list.remove());
+
+      // PASS 4: Xử lý citation đứng một mình không có parent hợp lệ
+      // Wrap chúng lại hoặc xóa
+      const orphanCitations = Array.from(editor.childNodes).filter(node => {
+        if (node.nodeType === Node.ELEMENT_NODE && node.classList?.contains('citation-badge')) {
+          return true;
+        }
+        return false;
+      });
+
+      orphanCitations.forEach(citation => {
+        const prev = citation.previousSibling;
+        if (prev && prev.nodeType === Node.ELEMENT_NODE) {
+          prev.appendChild(document.createTextNode(' '));
+          prev.appendChild(citation.cloneNode(true));
+        }
+        citation.remove();
+      });
+    }
+
+    /**
+     * Xóa định dạng
+     * ĐÃ SỬA: Reset về 'p' để không bị mất khoảng cách dòng
+     */
+    function clearFormatting() {
+      const editor = getEditor();
+      editor.focus();
+      saveUndoState(); // Lưu state trước khi xóa format
+      document.execCommand('removeFormat', false, null);
+      document.execCommand('formatBlock', false, 'p');
+      updateToolbarState();
+      saveNotes();
+    }
+
+    // ============================================
+    // CẬP NHẬT TRẠNG THÁI THANH CÔNG CỤ (BUTTON HIGHLIGHT)
+    // ============================================
+
+    function updateToolbarState() {
+      const editor = getEditor();
+      // Nếu không focus vào editor thì không làm gì
+      if (document.activeElement !== editor && !editor.contains(window.getSelection().anchorNode)) return;
+
+      // 1. Cập nhật nút Inline (B, I, U)
+      updateButtonState('btnBold', document.queryCommandState('bold'));
+      updateButtonState('btnItalic', document.queryCommandState('italic'));
+      updateButtonState('btnUnderline', document.queryCommandState('underline'));
+
+      // 2. Cập nhật nút Block (H1, H2) dùng hàm getActiveStyle tự viết cho chính xác
+      updateButtonState('btnH1', getActiveStyle('h1'));
+      updateButtonState('btnH2', getActiveStyle('h2'));
+
+      // 3. Cập nhật nút List (UL, OL)
+      updateButtonState('btnUL', document.queryCommandState('insertUnorderedList'));
+      updateButtonState('btnOL', document.queryCommandState('insertOrderedList'));
+    }
+
+    function updateButtonState(btnId, isActive) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      if (isActive) {
+        btn.classList.add('toolbar-btn-active');
+        // Đổi màu text sang trắng để nổi bật trên nền xanh
+        btn.classList.replace('text-gray-200', 'text-white');
+        btn.classList.remove('hover:bg-gray-600');
+      } else {
+        btn.classList.remove('toolbar-btn-active');
+        btn.classList.replace('text-white', 'text-gray-200');
+        btn.classList.add('hover:bg-gray-600');
+      }
+    }
+
+    // ============================================
+    // EVENTS
+    // ============================================
+
+    document.addEventListener('selectionchange', () => {
+      setTimeout(updateToolbarState, 10);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const editor = getEditor();
+      if (document.activeElement !== editor) return;
+
+      // CUSTOM UNDO/REDO (Cmd/Ctrl + Z, Cmd/Ctrl + Shift + Z)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          // Redo
+          if (customRedo()) {
+            e.preventDefault();
+          }
+        } else {
+          // Undo
+          if (customUndo()) {
+            e.preventDefault();
+          }
+        }
+        return;
+      }
+
+      // Phím tắt định dạng
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        if (e.key === 'b') { e.preventDefault(); formatText('bold'); }
+        if (e.key === 'i') { e.preventDefault(); formatText('italic'); }
+        if (e.key === 'u') { e.preventDefault(); formatText('underline'); }
+      }
+    });
+
+    // Lưu state ban đầu khi page load
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const editor = getEditor();
+        if (editor && editor.innerHTML.trim()) {
+          saveUndoState();
+        }
+      }, 200);
+    });
+
+    // ============================================
+    // CONTENT WORKSPACE FUNCTIONS
+    // ============================================
+    function addToNotes(messageId) {
+      const msgEl = document.querySelector(`#${messageId} .msg-content`);
+      if (!msgEl) return showToast('Could not find message content', 'error');
+
+      const editor = document.getElementById('notesEditor');
+      const hasContent = editor.innerText.trim().length > 0;
+      const divider = hasContent ? '<hr class="my-4 border-gray-700">' : '';
+
+      editor.innerHTML += `${divider}<div class="note-block mb-4">${msgEl.innerHTML}</div>`;
+
+      saveNotes();
+      updateWordCount();
+      showToast('Added to Content Workspace ✓', 'success');
+      editor.scrollTop = editor.scrollHeight;
+    }
+
+    function copyToClipboard(messageId) {
+      const msgEl = document.querySelector(`#${messageId} .msg-content`);
+      if (!msgEl) return;
+
+      navigator.clipboard.writeText(msgEl.innerText)
+        .then(() => showToast('Copied to clipboard', 'success'))
+        .catch(() => showToast('Failed to copy', 'error'));
+    }
+
+    function onNotesChange() {
+      updateWordCount();
+    }
+
+    function updateWordCount() {
+      const editor = document.getElementById('notesEditor');
+      const text = editor.innerText.trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      document.getElementById('notesWordCount').textContent = `${words} words`;
+    }
+
+    function saveNotes() {
+      const content = document.getElementById('notesEditor').innerHTML;
+      localStorage.setItem(`notes_${state.notebookId}`, content);
+    }
+
+    function loadNotes() {
+      const saved = localStorage.getItem(`notes_${state.notebookId}`);
+      const editor = document.getElementById('notesEditor');
+      if (saved) {
+        editor.innerHTML = saved;
+        updateWordCount();
+      }
+    }
+
+    function clearNotes() {
+      if (!confirm('Clear all notes?')) return;
+      const editor = document.getElementById('notesEditor');
+      editor.innerHTML = '';
+      localStorage.removeItem(`notes_${state.notebookId}`);
+      updateWordCount();
+      showToast('Notes cleared', 'success');
+    }
+
+    // ============================================
+    // EXPORT FUNCTIONS
+    // ============================================
+    function exportNotesToTxt() {
+      const editor = document.getElementById('notesEditor');
+      const text = editor.innerText.trim();
+
+      if (!text) return showToast('No content to export', 'error');
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `content-workspace-${state.notebookId}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported as TXT!', 'success');
+    }
+
+    async function exportNotesToDocx() {
+      const editor = document.getElementById('notesEditor');
+      const html = editor.innerHTML.trim();
+
+      if (!html || editor.innerText.trim().length === 0) {
+        return showToast('No content to export', 'error');
+      }
+
+      try {
+        // Clone và clean up content trước khi export
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+
+        // Xóa các elements không cần thiết (icons, checkboxes...)
+        tempDiv.querySelectorAll('input, button, .fa, .fas, .fab, .far').forEach(el => el.remove());
+
+        const children = [];
+
+        // Đệ quy xử lý tất cả nodes
+        processNodes(tempDiv, children, false, 'ul');
+
+        if (children.length === 0) {
+          children.push(new docx.Paragraph({
+            children: [new docx.TextRun({ text: editor.innerText })]
+          }));
+        }
+
+        // Tạo document với styles đẹp
+        const doc = new docx.Document({
+          styles: {
+            paragraphStyles: [
+              {
+                id: "Heading1",
+                name: "Heading 1",
+                basedOn: "Normal",
+                next: "Normal",
+                quickFormat: true,
+                run: {
+                  size: 32, // 16pt
+                  bold: true,
+                  color: "2563EB" // Blue
+                },
+                paragraph: {
+                  spacing: { before: 240, after: 120 }
+                }
+              },
+              {
+                id: "Heading2",
+                name: "Heading 2",
+                basedOn: "Normal",
+                next: "Normal",
+                quickFormat: true,
+                run: {
+                  size: 26, // 13pt
+                  bold: true,
+                  color: "1E40AF" // Darker blue
+                },
+                paragraph: {
+                  spacing: { before: 200, after: 100 }
+                }
+              }
+            ]
+          },
+          numbering: {
+            config: [{
+              reference: 'default-numbering',
+              levels: [{
+                level: 0,
+                format: docx.LevelFormat.DECIMAL,
+                text: '%1.',
+                alignment: docx.AlignmentType.START,
+                style: { paragraph: { indent: { left: 720, hanging: 360 } } }
+              }]
+            }, {
+              reference: 'default-bullet',
+              levels: [{
+                level: 0,
+                format: docx.LevelFormat.BULLET,
+                text: '•',
+                alignment: docx.AlignmentType.START,
+                style: { paragraph: { indent: { left: 720, hanging: 360 } } }
+              }]
+            }]
+          },
+          sections: [{
+            properties: {
+              page: {
+                margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } // 1 inch margins
+              }
+            },
+            children
+          }]
+        });
+
+        const blob = await docx.Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `content-workspace-${state.notebookId}.docx`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Exported as DOCX!', 'success');
+      } catch (err) {
+        console.error('DOCX export error:', err);
+        showToast('DOCX export failed: ' + err.message, 'error');
+      }
+    }
+
+    /**
+     * Xử lý đệ quy tất cả nodes trong HTML
+     * @param {Element} container - Container element
+     * @param {Array} children - Array để push paragraphs vào
+     * @param {boolean} isListItem - Có đang trong list item không
+     * @param {string} listType - 'ul' hoặc 'ol'
+     */
+    function processNodes(container, children, isListItem = false, listType = 'ul') {
+      const nodes = container.childNodes;
+
+      for (let node of nodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent.trim();
+          if (text) {
+            children.push(new docx.Paragraph({
+              children: [new docx.TextRun({ text })]
+            }));
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const tagName = node.nodeName.toUpperCase();
+
+          switch (tagName) {
+            case 'H1':
+              children.push(new docx.Paragraph({
+                children: parseInlineFormatting(node),
+                heading: docx.HeadingLevel.HEADING_1,
+                spacing: { before: 300, after: 150 }
+              }));
+              break;
+
+            case 'H2':
+              children.push(new docx.Paragraph({
+                children: parseInlineFormatting(node),
+                heading: docx.HeadingLevel.HEADING_2,
+                spacing: { before: 240, after: 120 }
+              }));
+              break;
+
+            case 'H3':
+              children.push(new docx.Paragraph({
+                children: parseInlineFormatting(node),
+                heading: docx.HeadingLevel.HEADING_3,
+                spacing: { before: 200, after: 100 }
+              }));
+              break;
+
+            case 'P':
+              const pRuns = parseInlineFormatting(node);
+              if (pRuns.length > 0) {
+                children.push(new docx.Paragraph({
+                  children: pRuns,
+                  spacing: { after: 120 }
+                }));
+              }
+              break;
+
+            case 'UL':
+              // Xử lý unordered list
+              node.querySelectorAll(':scope > li').forEach(li => {
+                const liRuns = parseInlineFormatting(li);
+                if (liRuns.length > 0) {
+                  children.push(new docx.Paragraph({
+                    children: liRuns,
+                    bullet: { level: 0 },
+                    spacing: { after: 60 }
+                  }));
+                }
+              });
+              break;
+
+            case 'OL':
+              // Xử lý ordered list
+              node.querySelectorAll(':scope > li').forEach(li => {
+                const liRuns = parseInlineFormatting(li);
+                if (liRuns.length > 0) {
+                  children.push(new docx.Paragraph({
+                    children: liRuns,
+                    numbering: { reference: 'default-numbering', level: 0 },
+                    spacing: { after: 60 }
+                  }));
+                }
+              });
+              break;
+
+            case 'DIV':
+            case 'SECTION':
+            case 'ARTICLE':
+              // Đệ quy vào các container
+              processNodes(node, children, false, listType);
+              break;
+
+            case 'BR':
+              // Thêm line break
+              children.push(new docx.Paragraph({ children: [] }));
+              break;
+
+            case 'HR':
+              // Thêm horizontal rule (as empty line with border)
+              children.push(new docx.Paragraph({
+                children: [],
+                border: { bottom: { style: docx.BorderStyle.SINGLE, size: 6, color: "CCCCCC" } },
+                spacing: { before: 120, after: 120 }
+              }));
+              break;
+
+            default:
+              // Các element khác - lấy text content
+              const runs = parseInlineFormatting(node);
+              if (runs.length > 0) {
+                children.push(new docx.Paragraph({ children: runs }));
+              }
+          }
+        }
+      }
+    }
+
+    /**
+     * Parse inline formatting (bold, italic, underline, citations) thành TextRuns
+     * @param {Element} node - Element để parse
+     * @returns {Array<docx.TextRun>} Array of TextRuns
+     */
+    function parseInlineFormatting(node) {
+      const runs = [];
+
+      function traverse(el, styles = {}) {
+        el.childNodes.forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) {
+            const text = child.textContent;
+            if (text) {
+              runs.push(new docx.TextRun({
+                text: text,
+                bold: styles.bold || false,
+                italics: styles.italic || false,
+                underline: styles.underline ? {} : undefined,
+                superScript: styles.superscript || false,
+                color: styles.color
+              }));
+            }
+          } else if (child.nodeType === Node.ELEMENT_NODE) {
+            const tag = child.nodeName.toUpperCase();
+
+            // Skip citation badges hoàn toàn - không export ra DOCX
+            if (child.classList && child.classList.contains('citation-badge')) {
+              return; // Bỏ qua hoàn toàn, không thêm vào DOCX
+            }
+
+            // Skip empty elements hoặc icons
+            if (child.classList && (
+              child.classList.contains('fa') ||
+              child.classList.contains('fas') ||
+              child.classList.contains('fab')
+            )) {
+              return;
+            }
+
+            // Clone styles và update based on tag
+            const newStyles = { ...styles };
+
+            switch (tag) {
+              case 'STRONG':
+              case 'B':
+                newStyles.bold = true;
+                break;
+              case 'EM':
+              case 'I':
+                newStyles.italic = true;
+                break;
+              case 'U':
+                newStyles.underline = true;
+                break;
+              case 'SUP':
+                newStyles.superscript = true;
+                break;
+              case 'SPAN':
+                // Check for inline styles
+                if (child.style) {
+                  if (child.style.fontWeight === 'bold' || child.style.fontWeight >= 600) {
+                    newStyles.bold = true;
+                  }
+                  if (child.style.fontStyle === 'italic') {
+                    newStyles.italic = true;
+                  }
+                  if (child.style.textDecoration && child.style.textDecoration.includes('underline')) {
+                    newStyles.underline = true;
+                  }
+                }
+                break;
+            }
+
+            traverse(child, newStyles);
+          }
+        });
+      }
+
+      traverse(node);
+      return runs;
+    }
+
+    // Legacy function for backward compatibility
+    function parseNodeFormatting(node, runs) {
+      const parsed = parseInlineFormatting(node);
+      runs.push(...parsed);
+    }
+
+    // Initialize notes on load
+    // QUAN TRỌNG: Cài đặt thẻ mặc định là <p> khi load trang
+    // Giúp Undo/Redo mượt mà và giữ khoảng cách dòng chuẩn
+    document.addEventListener('DOMContentLoaded', () => {
+      document.execCommand('defaultParagraphSeparator', false, 'p');
+      setTimeout(loadNotes, 100);
+    });
+
+    // ============================================
+    // MIND MAP FUNCTIONS (Kept same as original)
+    // ============================================
+    let mindMapData = null;
+    let mindMapScale = 1;
+    let mindMapOffset = { x: 0, y: 0 };
+    let mindMapNodeStates = {};
+    let isGeneratingMindMap = false;
+    let savedMindMaps = [];
+    let mindMapNodeData = [];
+    let isRenderingMindMap = false;
+    let lastRenderTime = 0;
+
+    function saveMindMap(mapData) {
+      const mindMapEntry = {
+        id: `mm-${Date.now()}`,
+        topic: mapData.topic,
+        data: mapData,
+        sourceCount: state.sources.length,
+        createdAt: new Date().toISOString()
+      };
+      savedMindMaps.unshift(mindMapEntry);
+      if (savedMindMaps.length > 5) savedMindMaps.pop();
+      try {
+        localStorage.setItem('notebooklm_mindmaps', JSON.stringify(savedMindMaps));
+      } catch (e) { console.log('Failed to save mind maps'); }
+      renderSavedMindMaps();
+      return mindMapEntry;
+    }
+
+    function loadSavedMindMaps() {
+      try {
+        const saved = localStorage.getItem('notebooklm_mindmaps');
+        if (saved) {
+          savedMindMaps = JSON.parse(saved);
+          renderSavedMindMaps();
+        }
+      } catch (e) { console.log('Failed to load mind maps'); }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSavedMindMaps);
+
+    function renderSavedMindMaps() {
+      const section = document.getElementById('savedMindMapsSection');
+      const list = document.getElementById('savedMindMapsList');
+
+      if (savedMindMaps.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      list.innerHTML = savedMindMaps.map(mm => {
+        const timeAgo = getTimeAgo(mm.createdAt);
+        return `
+          <div onclick="viewSavedMindMap('${mm.id}')" 
+            class="p-3 rounded-lg bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30 
+              hover:border-purple-500/50 cursor-pointer transition-all group">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-600/30 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-project-diagram text-purple-400 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-medium text-white truncate group-hover:text-purple-300 transition-colors">
+                  ${mm.topic.length > 25 ? mm.topic.substring(0, 22) + '...' : mm.topic}
+                </h4>
+                <p class="text-xs text-gray-500">${mm.sourceCount} sources · ${timeAgo}</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-600 group-hover:text-purple-400 transition-colors"></i>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function viewSavedMindMap(mmId) {
+      const mm = savedMindMaps.find(m => m.id === mmId);
+      if (!mm) return showToast('Mind map not found', 'error');
+
+      mindMapData = mm.data;
+      openMindMapModal();
+      document.getElementById('mindMapTitle').textContent = mm.topic;
+      document.getElementById('mindMapSubtitle').textContent = `Based on ${mm.sourceCount} sources`;
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          renderMindMap(mindMapData);
+        });
+      });
+    }
+
+    function getTimeAgo(dateStr) {
+      const now = new Date();
+      const date = new Date(dateStr);
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'Just finished';
+      if (diffMins < 60) return `${diffMins} minutes ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays} days ago`;
+    }
+
+    async function generateMindMap() {
+      if (isGeneratingMindMap) {
+        return showToast('Mind Map is generating...', 'error');
+      }
+
+      if (state.sources.length === 0) {
+        return showToast('Please add sources first', 'error');
+      }
+
+      isGeneratingMindMap = true;
+      openMindMapModal();
+      document.getElementById('mindMapLoading').classList.remove('hidden');
+      document.getElementById('mindMapSubtitle').textContent = `Based on ${state.sources.length} sources`;
+
+      try {
+        const res = await fetch(ENDPOINTS.start, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'mindmap',
+            notebookId: state.notebookId,
+            sources: state.sources
+          })
+        });
+
+        const data = await res.json();
+        if (!data.jobId) throw new Error(data.error || 'Failed to start mind map generation');
+
+        await pollMindMapResult(data.jobId);
+
+      } catch (err) {
+        document.getElementById('mindMapLoading').classList.add('hidden');
+        showToast('Mind Map generation failed: ' + err.message, 'error');
+        showDemoMindMap();
+        isGeneratingMindMap = false;
+      }
+    }
+
+    async function pollMindMapResult(jobId) {
+      let attempts = 0;
+      const maxAttempts = 90;
+
+      const poll = async () => {
+        attempts++;
+        try {
+          const res = await fetch(`${ENDPOINTS.status}?jobId=${jobId}`);
+          const data = await res.json();
+
+          if (data.status === 'completed') {
+            document.getElementById('mindMapLoading').classList.add('hidden');
+
+            let mapData = data.result?.mindmap || data.result;
+            if (typeof mapData === 'string') {
+              try { mapData = JSON.parse(mapData); } catch (e) { }
+            }
+
+            if (mapData && mapData.topic) {
+              mindMapData = mapData;
+              saveMindMap(mindMapData);
+
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  renderMindMap(mindMapData);
+                  showToast('Mind Map generated!', 'success');
+                });
+              });
+            } else {
+              showDemoMindMap();
+            }
+            isGeneratingMindMap = false;
+            return;
+          }
+
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 2000);
+          } else {
+            throw new Error('Timeout waiting for mind map');
+          }
+        } catch (err) {
+          document.getElementById('mindMapLoading').classList.add('hidden');
+          showToast('Error: ' + err.message, 'error');
+          showDemoMindMap();
+          isGeneratingMindMap = false;
+        }
+      };
+
+      poll();
+    }
+
+    function showDemoMindMap() {
+      const mainTopic = state.sources.length > 0
+        ? `Content from ${state.sources.length} sources`
+        : 'Demo Mind Map';
+
+      mindMapData = {
+        topic: mainTopic,
+        children: state.sources.slice(0, 5).map((src, i) => ({
+          id: `src-${i}`,
+          topic: src.title.length > 30 ? src.title.substring(0, 27) + '...' : src.title,
+          children: [
+            { id: `${i}-1`, topic: 'Main concepts' },
+            { id: `${i}-2`, topic: 'Key details' }
+          ]
+        }))
+      };
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          renderMindMap(mindMapData);
+        });
+      });
+    }
+
+    function renderMindMap(data) {
+      const now = Date.now();
+      if (now - lastRenderTime < 300) return;
+      if (isRenderingMindMap) return;
+
+      const container = document.getElementById('mindMapContainer');
+      if (!container || container.offsetHeight < 100) {
+        setTimeout(() => renderMindMap(data), 100);
+        return;
+      }
+
+      isRenderingMindMap = true;
+      lastRenderTime = now;
+
+      const nodesDiv = document.getElementById('mindMapNodes');
+      const svg = document.getElementById('mindMapSvg');
+
+      if (!nodesDiv || !svg) {
+        isRenderingMindMap = false;
+        return;
+      }
+
+      nodesDiv.innerHTML = '';
+      svg.innerHTML = '';
+      mindMapNodeData = [];
+
+      const nodeHeight = 44;
+      const horizontalGap = 60;
+      const verticalGap = 12;
+      const startX = 150;
+
+      const containerHeight = container.offsetHeight;
+      const startY = containerHeight / 2;
+
+      function getNodeId(path) {
+        return `node-${path.join('-')}`;
+      }
+
+      const tempNodes = [];
+
+      function collectNodes(nodeData, level, parentId, path) {
+        const id = getNodeId(path);
+        const hasChildren = nodeData.children && nodeData.children.length > 0;
+        const isExpanded = mindMapNodeStates[id] !== false;
+
+        tempNodes.push({
+          id,
+          topic: nodeData.topic,
+          level,
+          hasChildren,
+          isExpanded,
+          parentId,
+          children: hasChildren && isExpanded ? nodeData.children : []
+        });
+
+        if (hasChildren && isExpanded) {
+          nodeData.children.forEach((child, i) => {
+            collectNodes(child, level + 1, id, [...path, i]);
+          });
+        }
+      }
+
+      collectNodes(data, 0, null, ['root']);
+
+      const measuredWidths = {};
+
+      function estimateWidth(text, isRoot) {
+        const charWidth = 8.5;
+        const padding = isRoot ? 44 : 36;
+        const buttonWidth = 32;
+        return Math.max(140, Math.min(350, text.length * charWidth + padding + buttonWidth));
+      }
+
+      tempNodes.forEach(node => {
+        const div = document.createElement('div');
+        div.className = `mindmap-node ${node.level === 0 ? 'root' : ''}`;
+        div.style.cssText = `
+          visibility: hidden !important;
+          position: absolute !important;
+          white-space: nowrap !important;
+          animation: none !important;
+          transform: none !important;
+          opacity: 1 !important;
+          left: 0 !important;
+          top: 0 !important;
+        `;
+
+        let content = `<span>${node.topic}</span>`;
+        if (node.hasChildren) {
+          content += `<span class="expand-btn">‹</span>`;
+        }
+        div.innerHTML = content;
+        nodesDiv.appendChild(div);
+
+        void div.offsetHeight;
+        const measured = div.offsetWidth;
+        const estimated = estimateWidth(node.topic, node.level === 0);
+        measuredWidths[node.id] = measured > 50 ? measured : estimated;
+      });
+
+      nodesDiv.innerHTML = '';
+
+      function calculateSubtreeHeight(nodeData, path) {
+        const id = getNodeId(path);
+        const hasChildren = nodeData.children && nodeData.children.length > 0;
+        const isExpanded = mindMapNodeStates[id] !== false;
+
+        if (!hasChildren || !isExpanded) {
+          return nodeHeight;
+        }
+
+        let totalChildHeight = 0;
+        nodeData.children.forEach((child, i) => {
+          totalChildHeight += calculateSubtreeHeight(child, [...path, i]);
+          if (i < nodeData.children.length - 1) {
+            totalChildHeight += verticalGap;
+          }
+        });
+
+        return Math.max(nodeHeight, totalChildHeight);
+      }
+
+      function layoutNode(nodeData, x, y, level, parentId, path) {
+        const id = getNodeId(path);
+        const hasChildren = nodeData.children && nodeData.children.length > 0;
+        const isExpanded = mindMapNodeStates[id] !== false;
+
+        const subtreeHeight = calculateSubtreeHeight(nodeData, path);
+        const nodeY = y + (subtreeHeight - nodeHeight) / 2;
+
+        const nodeWidth = measuredWidths[id] || 150;
+
+        mindMapNodeData.push({
+          id,
+          topic: nodeData.topic,
+          x,
+          y: nodeY,
+          width: nodeWidth,
+          height: nodeHeight,
+          level,
+          hasChildren,
+          isExpanded,
+          parentId
+        });
+
+        if (hasChildren && isExpanded) {
+          let currentY = y;
+          const childX = x + nodeWidth + horizontalGap;
+
+          nodeData.children.forEach((child, i) => {
+            const childPath = [...path, i];
+            const childSubtreeHeight = calculateSubtreeHeight(child, childPath);
+            layoutNode(child, childX, currentY, level + 1, id, childPath);
+            currentY += childSubtreeHeight + verticalGap;
+          });
+        }
+      }
+
+      const rootPath = ['root'];
+      const rootSubtreeHeight = calculateSubtreeHeight(data, rootPath);
+      let rootStartY = startY - rootSubtreeHeight / 2;
+
+      if (rootStartY < 20) {
+        rootStartY = 20;
+      }
+
+      layoutNode(data, startX, rootStartY, 0, null, rootPath);
+
+      mindMapNodeData.forEach((node, i) => {
+        const div = document.createElement('div');
+        div.id = node.id;
+        div.className = `mindmap-node ${node.level === 0 ? 'root' : ''} ${!node.isExpanded ? 'collapsed' : ''}`;
+        div.style.left = `${node.x}px`;
+        div.style.top = `${node.y}px`;
+        div.style.animationDelay = `${node.level * 0.08 + i * 0.02}s`;
+
+        if (node.parentId) {
+          div.dataset.parentId = node.parentId;
+        }
+
+        let content = '';
+        if (node.hasChildren) {
+          const arrow = node.isExpanded ? '‹' : '›';
+          content = `<span>${node.topic}</span><span class="expand-btn" onclick="event.stopPropagation(); toggleMindMapNode('${node.id}')">${arrow}</span>`;
+        } else {
+          content = `<span>${node.topic}</span>`;
+        }
+
+        div.innerHTML = content;
+        nodesDiv.appendChild(div);
+      });
+
+      drawLinesFromStoredPositions();
+      applyMindMapTransform();
+      isRenderingMindMap = false;
+    }
+
+    function drawLinesFromStoredPositions() {
+      const svg = document.getElementById('mindMapSvg');
+      if (!svg) return;
+
+      svg.innerHTML = '';
+
+      const nodeMap = {};
+      mindMapNodeData.forEach(node => {
+        nodeMap[node.id] = node;
+      });
+
+      let lineIndex = 0;
+
+      mindMapNodeData.forEach(node => {
+        if (!node.parentId) return;
+
+        const parent = nodeMap[node.parentId];
+        if (!parent) return;
+
+        const x1 = parent.x + parent.width;
+        const y1 = parent.y + parent.height / 2;
+        const x2 = node.x;
+        const y2 = node.y + node.height / 2;
+
+        if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0 ||
+          isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) ||
+          x1 > 3000 || y1 > 2000 || x2 > 3000 || y2 > 2000) {
+          return;
+        }
+
+        const midX = x1 + (x2 - x1) * 0.5;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`;
+        path.setAttribute('d', d);
+
+        const lineLevel = Math.min(parent.level, 2);
+        path.setAttribute('class', `mindmap-line line-level-${lineLevel}`);
+        path.style.animationDelay = `${lineIndex * 0.03}s`;
+
+        svg.appendChild(path);
+        lineIndex++;
+      });
+    }
+
+    function toggleMindMapNode(nodeId) {
+      const currentState = mindMapNodeStates[nodeId] !== false;
+      mindMapNodeStates[nodeId] = !currentState;
+      renderMindMap(mindMapData);
+    }
+
+    function openMindMapModal() {
+      const modal = document.getElementById('mindMapModal');
+
+      if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+
+      modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; z-index: 60; background: rgba(0,0,0,0.95); flex-direction: column;';
+
+      mindMapScale = 1;
+      mindMapOffset = { x: 0, y: 0 };
+      mindMapNodeStates = {};
+
+      if (state.sources.length > 0) {
+        const firstTitle = state.sources[0].title;
+        document.getElementById('mindMapTitle').textContent =
+          firstTitle.length > 50 ? firstTitle.substring(0, 47) + '...' : firstTitle;
+      }
+    }
+
+    function closeMindMapModal() {
+      const modal = document.getElementById('mindMapModal');
+      modal.style.display = 'none';
+    }
+
+    function zoomMindMap(delta) {
+      mindMapScale = Math.max(0.3, Math.min(2, mindMapScale + delta));
+      applyMindMapTransform();
+    }
+
+    function resetMindMapZoom() {
+      mindMapScale = 1;
+      mindMapOffset = { x: 0, y: 0 };
+      applyMindMapTransform();
+    }
+
+    function applyMindMapTransform() {
+      const canvas = document.getElementById('mindMapCanvas');
+      const transform = `translate(${mindMapOffset.x}px, ${mindMapOffset.y}px) scale(${mindMapScale})`;
+      canvas.style.transform = transform;
+    }
+
+    function toggleMindMapFullscreen() {
+      const modal = document.getElementById('mindMapModal');
+      if (!document.fullscreenElement) {
+        modal.requestFullscreen?.() || modal.webkitRequestFullscreen?.();
+      } else {
+        document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+      }
+    }
+
+    async function exportMindMapPNG() {
+      const container = document.getElementById('mindMapContainer');
+
+      try {
+        if (typeof html2canvas !== 'undefined') {
+          const canvas = await html2canvas(container, {
+            backgroundColor: '#0f0f23',
+            scale: 2
+          });
+          const link = document.createElement('a');
+          link.download = `mindmap-${state.notebookId}.png`;
+          link.href = canvas.toDataURL();
+          link.click();
+        } else {
+          showToast('Export requires html2canvas library', 'error');
+        }
+      } catch (err) {
+        showToast('Export failed', 'error');
+      }
+    }
+
+    // Mouse drag for panning
+    (function setupMindMapDrag() {
+      let isDragging = false;
+      let startPos = { x: 0, y: 0 };
+      const panDamping = 0.7;
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('mindMapContainer');
+        if (!container) return;
+
+        container.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.mindmap-node')) return;
+          isDragging = true;
+          startPos = { x: e.clientX, y: e.clientY };
+          container.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const dx = (e.clientX - startPos.x) * panDamping;
+          const dy = (e.clientY - startPos.y) * panDamping;
+          mindMapOffset.x += dx;
+          mindMapOffset.y += dy;
+          startPos = { x: e.clientX, y: e.clientY };
+          applyMindMapTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            const container = document.getElementById('mindMapContainer');
+            if (container) container.style.cursor = 'default';
+          }
+        });
+
+        container.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -0.1 : 0.1;
+          zoomMindMap(delta);
+        });
+      });
+    })();
+
+    console.log('✅ NotebookLM Crew with Fixed Toolbar V3 loaded');
+  </script>
+</body>
+
+</html>
